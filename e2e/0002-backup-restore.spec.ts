@@ -259,7 +259,10 @@ async function waitForRepositorySnapshots(page: Page, repositoryShortId: string,
 }
 
 async function deleteRepositoryConfig(page: Page, repositoryShortId: string) {
-	const response = await page.request.delete(`/api/v1/repositories/${repositoryShortId}`);
+	const response = await page.request.delete(`/api/v1/repositories/${repositoryShortId}`, {
+		headers: { Origin: new URL(page.url()).origin },
+	});
+
 	expect(response.ok()).toBe(true);
 
 	await expect(async () => {

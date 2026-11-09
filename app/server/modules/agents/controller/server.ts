@@ -1,14 +1,13 @@
 import { Cause, Effect, Stream, SubscriptionRef, type Duration } from "effect";
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
-import {
-	createControllerMessage,
-	type BackupCancelPayload,
-	type ControllerWireMessage,
-	type BackupRunPayload,
-	type FilesystemCommand,
-	type RestoreCancelPayload,
-	type RestoreRunPayload,
+import type {
+	BackupCancelPayload,
+	ControllerMessage,
+	BackupRunPayload,
+	FilesystemCommand,
+	RestoreCancelPayload,
+	RestoreRunPayload,
 } from "@zerobyte/contracts/agent-protocol";
 import { agentsService } from "../agents.service";
 import {
@@ -107,7 +106,7 @@ export const createAgentController = (onEvent: (event: AgentManagerEvent) => voi
 	const dispatch = (
 		agentId: string,
 		admits: (connection: AgentConnection) => boolean,
-		createMessage: () => ControllerWireMessage,
+		createMessage: () => ControllerMessage,
 	) =>
 		Effect.suspend(() => {
 			const connection = connections.get(agentId);
@@ -207,28 +206,28 @@ export const createAgentController = (onEvent: (event: AgentManagerEvent) => voi
 			dispatch(
 				agentId,
 				(connection) => connection.canBackup(payload.organizationId),
-				() => createControllerMessage("backup.run", payload),
+				() => ({ type: "backup.run", payload }),
 			),
 
 		cancelBackup: (agentId: string, payload: BackupCancelPayload) =>
 			dispatch(
 				agentId,
 				(connection) => connection.isReady(),
-				() => createControllerMessage("backup.cancel", payload),
+				() => ({ type: "backup.cancel", payload }),
 			),
 
 		sendRestore: (agentId: string, payload: RestoreRunPayload) =>
 			dispatch(
 				agentId,
 				(connection) => connection.canRestore(payload.organizationId),
-				() => createControllerMessage("restore.run", payload),
+				() => ({ type: "restore.run", payload }),
 			),
 
 		cancelRestore: (agentId: string, payload: RestoreCancelPayload) =>
 			dispatch(
 				agentId,
 				(connection) => connection.isReady(),
-				() => createControllerMessage("restore.cancel", payload),
+				() => ({ type: "restore.cancel", payload }),
 			),
 
 		runFilesystemCommand: (agentId: string, organizationId: string, command: FilesystemCommand) =>

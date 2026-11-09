@@ -1,5 +1,5 @@
 import { Data, Deferred, Effect, Fiber, Queue } from "effect";
-import { logger } from "@zerobyte/core/node";
+import { logger, createConnectionDiagnostics } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import {
 	createControllerMessage,
@@ -10,24 +10,26 @@ import {
 	type AgentCapabilities,
 	type AgentMessage,
 	type AgentProtocolRejection,
-	type ControllerWireMessage,
+	type ControllerMessage,
 	type FilesystemCommand,
 	type FilesystemCommandResponsePayload,
 } from "@zerobyte/contracts/agent-protocol";
 import { agentsService } from "../agents.service";
 import type { AgentIdentity } from "../helpers/tokens";
 import { serverHasRuntimeFeature } from "../../../lib/permission-service";
+import { createAgentMessageInbox, MAX_AGENT_INBOUND_BYTES, type InboundAgentMessage } from "./message-inbox";
 
 const MAX_QUEUED_MESSAGES = 64;
-const MAX_QUEUED_BYTES = 1024 * 1024;
 const READY_TIMEOUT_MS = 10_000;
 const LIVENESS_TIMEOUT_MS = 45_000;
+const LIVENESS_CHECK_INTERVAL_MS = 5_000;
 
 export type AgentConnectionData = AgentIdentity & { id: string; connectionSecurity?: "secure" | "insecure" };
 
 export type ControllerTransport = {
 	send: (message: string) => number | void;
 	close: (code?: number, reason?: string) => void;
+	readonly bufferedAmount?: number;
 };
 
 export type ConnectionEvent =
@@ -52,15 +54,44 @@ export const createAgentConnection = (
 	hooks: ConnectionHooks,
 ) => {
 	const started = Effect.runSync(Deferred.make<void>());
-	const inbox = Effect.runSync(Queue.dropping<string>(MAX_QUEUED_MESSAGES));
-	const outbound = Effect.runSync(Queue.bounded<ControllerWireMessage>(MAX_QUEUED_MESSAGES));
+	const inbox = createAgentMessageInbox();
+	const heartbeatUpdates = Effect.runSync(Queue.sliding<number>(1));
+	const outbound = Effect.runSync(Queue.bounded<{ message: ControllerMessage; wire: string }>(MAX_QUEUED_MESSAGES));
 	const pendingCommands = new Map<string, PendingCommand>();
 
-	const connectedAt = Date.now();
-	let lastSeenAt = connectedAt;
-	let queuedBytes = 0;
+	const readyDeadline = performance.now() + READY_TIMEOUT_MS;
+	let livenessDeadline = performance.now() + LIVENESS_TIMEOUT_MS;
+	let lastLivenessCheckAt = performance.now();
+	let heartbeatPersistenceStartedAt: number | null = null;
 	let capabilities: AgentCapabilities | null = null;
 	let closeReason: string | null = null;
+
+	const diagnostics = createConnectionDiagnostics(
+		data.id,
+		() => {
+			let heartbeatPersistenceMs: number | null = null;
+
+			if (heartbeatPersistenceStartedAt !== null) {
+				heartbeatPersistenceMs = Math.round(performance.now() - heartbeatPersistenceStartedAt);
+			}
+
+			return {
+				agentId: data.agentId,
+				...inbox.snapshot(),
+				pendingHeartbeatUpdates: Queue.sizeUnsafe(heartbeatUpdates),
+				heartbeatPersistenceMs,
+				outboundQueuedMessages: Queue.sizeUnsafe(outbound),
+				transportBufferedBytes: transport.bufferedAmount ?? null,
+			};
+		},
+		LIVENESS_CHECK_INTERVAL_MS,
+	);
+
+	const recordHeartbeat = (sentAt: number) => {
+		livenessDeadline = performance.now() + LIVENESS_TIMEOUT_MS;
+		diagnostics.onHeartbeatProcessed("pong", sentAt);
+		Queue.offerUnsafe(heartbeatUpdates, Date.now());
+	};
 
 	const closeTransport = (reason: string, code: number) => {
 		if (closeReason !== null) return;
@@ -74,11 +105,20 @@ export const createAgentConnection = (
 		}
 	};
 
-	const send = (message: ControllerWireMessage) =>
+	const send = (message: ControllerMessage) =>
 		Effect.suspend(() => {
 			if (closeReason !== null) return Effect.succeed(false);
 
-			return Queue.offer(outbound, message).pipe(Effect.catchCause(() => Effect.succeed(false)));
+			return Effect.try(() => createControllerMessage(message.type, message.payload)).pipe(
+				Effect.flatMap((wire) =>
+					Queue.offer(outbound, { message, wire }).pipe(Effect.catchCause(() => Effect.succeed(false))),
+				),
+				Effect.tap((accepted) =>
+					Effect.sync(() => {
+						if (accepted && message.type === "heartbeat.ping") diagnostics.onPingQueued();
+					}),
+				),
+			);
 		});
 
 	const rejectStartup = (rejection: AgentProtocolRejection) =>
@@ -89,15 +129,13 @@ export const createAgentConnection = (
 			return yield* new ConnectionClosed({ reason: rejection.reason, code: 1002 });
 		});
 
-	const handleMessage = (text: string) =>
+	const handleMessage = ({ text, parsed }: InboundAgentMessage) =>
 		Effect.gen(function* () {
 			if (capabilities === null) {
 				const startup = parseAgentStartupMessage(text);
 
 				if (!("success" in startup)) return yield* rejectStartup(startup);
 			}
-
-			const parsed = parseAgentMessage(text);
 
 			if (parsed === null) return yield* logger.effect.warn(`Invalid JSON from agent ${data.agentId}`);
 
@@ -117,6 +155,8 @@ export const createAgentConnection = (
 
 			const event = parsed.data;
 
+			diagnostics.onProcessing(event.type);
+
 			switch (event.type) {
 				case "agent.ready": {
 					const readyAt = Date.now();
@@ -131,16 +171,15 @@ export const createAgentConnection = (
 
 					yield* Effect.tryPromise(() => agentsService.markAgentOnline(data, metadata, readyAt));
 
-					lastSeenAt = readyAt;
+					livenessDeadline = performance.now() + LIVENESS_TIMEOUT_MS;
 					capabilities = event.payload.capabilities;
 
 					yield* logger.effect.info(`Agent "${data.agentName}" (${data.agentId}) is ready`);
 					return yield* hooks.onReady;
 				}
-				case "heartbeat.pong": {
-					lastSeenAt = Date.now();
-					return yield* Effect.tryPromise(() => agentsService.markAgentSeen(data, lastSeenAt));
-				}
+				case "heartbeat.pong":
+					recordHeartbeat(event.payload.sentAt);
+					return;
 				case "filesystem.commandResult": {
 					const pending = pendingCommands.get(event.payload.commandId);
 
@@ -163,6 +202,7 @@ export const createAgentConnection = (
 					.error(`Inbound message from agent ${data.agentId} failed: ${toMessage(error)}`)
 					.pipe(Effect.andThen(new ConnectionClosed({ reason: "inbound_processing_failed", code: 1011 })));
 			}),
+			Effect.ensuring(Effect.sync(diagnostics.onProcessed)),
 			Effect.uninterruptible,
 		);
 
@@ -175,16 +215,47 @@ export const createAgentConnection = (
 		Effect.filterOrFail(Boolean, () => new ConnectionClosed({ reason: "credential_changed", code: 1008 })),
 	);
 
-	const processInbox = Effect.forever(
-		Queue.take(inbox).pipe(
-			Effect.tap((text) => Effect.sync(() => (queuedBytes -= Buffer.byteLength(text)))),
-			Effect.flatMap(handleMessage),
+	const persistHeartbeats = Effect.forever(
+		Queue.take(heartbeatUpdates).pipe(
+			Effect.flatMap((seenAt) =>
+				Effect.tryPromise(() => {
+					heartbeatPersistenceStartedAt = performance.now();
+					return agentsService.markAgentSeen(data, seenAt);
+				}).pipe(
+					Effect.ensuring(
+						Effect.sync(() => {
+							heartbeatPersistenceStartedAt = null;
+						}),
+					),
+					Effect.uninterruptible,
+				),
+			),
+			Effect.catch((error) =>
+				logger.effect
+					.error(`Heartbeat persistence for agent ${data.agentId} failed: ${toMessage(error)}`)
+					.pipe(Effect.andThen(new ConnectionClosed({ reason: "inbound_processing_failed", code: 1011 }))),
+			),
 		),
 	);
 
+	const processInbox = Effect.forever(inbox.take.pipe(Effect.flatMap(handleMessage)));
+
 	const processOutbound = Effect.forever(
 		Queue.take(outbound).pipe(
-			Effect.flatMap((message) => Effect.try({ try: () => transport.send(message), catch: toMessage })),
+			Effect.flatMap(({ message, wire }) =>
+				Effect.try({
+					try: () => transport.send(wire),
+					catch: toMessage,
+				}).pipe(
+					Effect.tap((sent) =>
+						Effect.sync(() => {
+							if (sent !== 0 && message.type === "heartbeat.ping") {
+								diagnostics.onHeartbeatSent("ping", message.payload.sentAt);
+							}
+						}),
+					),
+				),
+			),
 			Effect.filterOrFail(
 				(sent) => sent !== 0,
 				() => "connection issue",
@@ -196,15 +267,36 @@ export const createAgentConnection = (
 
 	const checkLiveness = Effect.forever(
 		Effect.gen(function* () {
-			yield* Effect.sleep("5 seconds");
+			yield* Effect.sleep(LIVENESS_CHECK_INTERVAL_MS);
 
-			const now = Date.now();
+			const now = performance.now();
+			const elapsed = now - lastLivenessCheckAt;
+			lastLivenessCheckAt = now;
 
-			if (capabilities === null && now - connectedAt >= READY_TIMEOUT_MS) {
+			const responseWindowExtended = elapsed >= 2 * LIVENESS_CHECK_INTERVAL_MS;
+
+			// After missing a full check interval, allow a fresh heartbeat round trip before declaring the agent lost.
+			if (responseWindowExtended) livenessDeadline = now + LIVENESS_TIMEOUT_MS;
+
+			const timer = diagnostics.checkTimer();
+
+			if (responseWindowExtended || Math.abs(timer.clockDriftMs) >= LIVENESS_CHECK_INTERVAL_MS) {
+				logger.warn(
+					"Controller heartbeat timer delayed or clock changed",
+					JSON.stringify({
+						...diagnostics.snapshot(),
+						...timer,
+						responseWindowExtended,
+					}),
+				);
+			}
+
+			if (capabilities === null && now >= readyDeadline) {
 				return yield* new ConnectionClosed({ reason: "agent_ready_timeout", code: 1001 });
 			}
 
-			if (capabilities !== null && now - lastSeenAt >= LIVENESS_TIMEOUT_MS) {
+			if (capabilities !== null && now >= livenessDeadline) {
+				logger.warn("Agent heartbeat timed out", JSON.stringify(diagnostics.snapshot()));
 				return yield* new ConnectionClosed({ reason: "heartbeat_timeout", code: 1001 });
 			}
 		}),
@@ -212,9 +304,8 @@ export const createAgentConnection = (
 
 	const sendHeartbeats = Effect.forever(
 		Effect.sleep("15 seconds").pipe(
-			Effect.andThen(
-				Effect.suspend(() => send(createControllerMessage("heartbeat.ping", { sentAt: Date.now() }))),
-			),
+			Effect.andThen(Effect.suspend(() => send({ type: "heartbeat.ping", payload: { sentAt: Date.now() } }))),
+			Effect.catch((error) => logger.effect.error(`Failed to queue agent heartbeat: ${toMessage(error)}`)),
 		),
 	);
 
@@ -229,9 +320,9 @@ export const createAgentConnection = (
 		}
 
 		pendingCommands.clear();
-		queuedBytes = 0;
 
-		yield* Queue.shutdown(inbox);
+		yield* inbox.shutdown;
+		yield* Queue.shutdown(heartbeatUpdates);
 		yield* Queue.shutdown(outbound);
 		yield* hooks.onClosed;
 	});
@@ -240,7 +331,7 @@ export const createAgentConnection = (
 		Deferred.await(started).pipe(
 			Effect.andThen(register),
 			Effect.andThen(
-				Effect.all([processInbox, processOutbound, checkLiveness, sendHeartbeats], {
+				Effect.all([processInbox, processOutbound, persistHeartbeats, checkLiveness, sendHeartbeats], {
 					concurrency: "unbounded",
 					discard: true,
 				}),
@@ -249,6 +340,15 @@ export const createAgentConnection = (
 			Effect.ensuring(release),
 		),
 	);
+
+	const rejectMessageLimit = (incomingMessageBytes: number) => {
+		logger.warn(
+			"Agent inbound message limit exceeded",
+			JSON.stringify({ ...diagnostics.snapshot(), incomingMessageBytes }),
+		);
+		closeTransport("message_limit", 1009);
+		return Effect.sync(() => fiber.interruptUnsafe());
+	};
 
 	const close = (reason: string, code = 1000) =>
 		Effect.suspend(() => {
@@ -273,14 +373,21 @@ export const createAgentConnection = (
 			Effect.suspend(() => {
 				if (closeReason !== null) return Effect.void;
 
+				diagnostics.onReceived();
+
 				const bytes = Buffer.byteLength(text);
 
-				if (queuedBytes + bytes > MAX_QUEUED_BYTES || !Queue.offerUnsafe(inbox, text)) {
-					closeTransport("message_limit", 1009);
-					return Effect.sync(() => fiber.interruptUnsafe());
+				if (bytes > MAX_AGENT_INBOUND_BYTES) return rejectMessageLimit(bytes);
+
+				const parsed = parseAgentMessage(text);
+
+				if (capabilities !== null && parsed?.success && parsed.data.type === "heartbeat.pong") {
+					recordHeartbeat(parsed.data.payload.sentAt);
+					return Effect.void;
 				}
 
-				queuedBytes += bytes;
+				if (!inbox.offer({ text, parsed })) return rejectMessageLimit(bytes);
+
 				return Effect.void;
 			}),
 
@@ -307,7 +414,7 @@ export const createAgentConnection = (
 
 				pendingCommands.set(commandId, { deferred, name: command.name });
 
-				if (!(yield* send(createControllerMessage("filesystem.command", { commandId, command })))) {
+				if (!(yield* send({ type: "filesystem.command", payload: { commandId, command } }))) {
 					return yield* Effect.fail(new Error(`Failed to queue filesystem command ${command.name}`));
 				}
 

@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { Effect } from "effect";
-import { createAgentMessage, type RestoreRunPayload } from "@zerobyte/contracts/agent-protocol";
+import type { RestoreRunPayload } from "@zerobyte/contracts/agent-protocol";
 import { createRestic } from "@zerobyte/core/restic/server";
 import { isPathWithin, toMessage } from "@zerobyte/core/utils";
 import { logger } from "@zerobyte/core/node";
@@ -36,12 +36,13 @@ export const handleRestoreRunCommand = (context: ControllerCommandContext, paylo
 
 		const existing = yield* context.getRunningJob(payload.restoreId);
 		if (existing) {
-			yield* context.offerOutbound(
-				createAgentMessage("restore.failed", {
+			yield* context.offerOutbound({
+				type: "restore.failed",
+				payload: {
 					...restoreContext,
 					error: "Restore job is already running",
-				}),
-			);
+				},
+			});
 			return;
 		}
 
@@ -56,50 +57,55 @@ export const handleRestoreRunCommand = (context: ControllerCommandContext, paylo
 				const services = yield* Effect.context<never>();
 				const restic = createRestic(context.resticDeps(payload.runtime.password));
 
-				yield* context.offerOutbound(createAgentMessage("restore.started", restoreContext));
+				yield* context.offerOutbound({ type: "restore.started", payload: restoreContext });
 
 				const result = yield* restic.restore(payload.repositoryConfig, payload.snapshotId, payload.target, {
 					...payload.options,
 					signal: abortController.signal,
 					onProgress: (progress) => {
 						void Effect.runPromiseWith(services)(
-							context.offerOutbound(
-								createAgentMessage("restore.progress", {
+							context.offerOutbound({
+								type: "restore.progress",
+								payload: {
 									...restoreContext,
 									progress,
-								}),
-							),
+								},
+							}),
 						).catch((error) => {
 							logger.error(`Failed to send restore progress update: ${toMessage(error)}`);
 						});
 					},
 				});
 
-				yield* context.offerOutbound(
-					createAgentMessage("restore.completed", {
+				yield* context.offerOutbound({
+					type: "restore.completed",
+					payload: {
 						...restoreContext,
 						result,
-					}),
-				);
+					},
+				});
 			}).pipe(
 				Effect.catch((error) => {
 					if (abortController.signal.aborted) {
-						return context.offerOutbound(
-							createAgentMessage("restore.cancelled", {
+						return context.offerOutbound({
+							type: "restore.cancelled",
+							payload: {
 								...restoreContext,
 								message: "Restore was cancelled",
-							}),
-						);
+							},
+						});
 					}
 
 					const errorMessage = toMessage(error);
-					return context.offerOutbound(
-						createAgentMessage("restore.failed", {
+
+					return context.offerOutbound({
+						type: "restore.failed",
+						payload: {
 							...restoreContext,
 							error: errorMessage,
 							errorDetails: errorMessage,
-						}),
-					);
+						},
+					});
 				}),
 				Effect.ensuring(context.deleteRunningJob(payload.restoreId)),
 			),

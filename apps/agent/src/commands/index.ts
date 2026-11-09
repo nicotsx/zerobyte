@@ -1,5 +1,4 @@
 import type { ControllerMessage } from "@zerobyte/contracts/agent-protocol";
-import { createAgentMessage } from "@zerobyte/contracts/agent-protocol";
 import { Effect } from "effect";
 import { handleBackupCancelCommand } from "./backup-cancel";
 import { handleBackupRunCommand } from "./backup-run";
@@ -23,15 +22,16 @@ export const handleControllerCommand = (context: ControllerCommandContext, messa
 		case "restore.run": {
 			if (!context.allowRestore) {
 				return context
-					.offerOutbound(
-						createAgentMessage("restore.failed", {
+					.offerOutbound({
+						type: "restore.failed",
+						payload: {
 							restoreId: message.payload.restoreId,
 							organizationId: message.payload.organizationId,
 							repositoryId: message.payload.repositoryId,
 							snapshotId: message.payload.snapshotId,
 							error: "Restore is not allowed on this agent",
-						}),
-					)
+						},
+					})
 					.pipe(Effect.asVoid);
 			}
 

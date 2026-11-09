@@ -4,14 +4,18 @@ import {
 	createAgentMessage,
 	parseControllerMessage,
 	type AgentCapabilities,
-	type AgentWireMessage,
+	type AgentMessage,
 	type ControllerWireMessage,
 } from "@zerobyte/contracts/agent-protocol";
-import { logger } from "@zerobyte/core/node";
+import {
+	logger,
+	createConnectionDiagnostics,
+	CONNECTION_DIAGNOSTIC_INTERVAL_MS,
+	resolveResticHostname,
+} from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import { handleControllerCommand } from "./commands";
 import type { ControllerCommandContext, RunningJob } from "./context";
-import { resolveResticHostname } from "@zerobyte/core/node";
 import { getTrustedRootDescriptors, type TrustedRootRegistry } from "./trusted-roots";
 import { resticDeps } from "./restic/deps";
 
@@ -32,7 +36,7 @@ export const createControllerSession = (
 ): ControllerSession => {
 	let isClosed = false;
 
-	const outboundQueue = Effect.runSync(Queue.bounded<AgentWireMessage>(64));
+	const outboundQueue = Effect.runSync(Queue.bounded<{ message: AgentMessage; wire: string }>(64));
 	const inboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));
 
 	const runningJobsRef = Effect.runSync(Ref.make<Map<string, RunningJob>>(new Map()));
@@ -44,6 +48,33 @@ export const createControllerSession = (
 		restore: builtinLocal,
 		trustedRoots: getTrustedRootDescriptors(trustedRoots),
 	};
+
+	const diagnostics = createConnectionDiagnostics(Bun.randomUUIDv7(), () => ({
+		inboundQueuedMessages: Queue.sizeUnsafe(inboundQueue),
+		outboundQueuedMessages: Queue.sizeUnsafe(outboundQueue),
+		transportBufferedBytes: ws.bufferedAmount ?? null,
+		activeJobs: Effect.runSync(Ref.get(runningJobsRef)).size,
+	}));
+
+	const diagnosticFiber = Effect.runFork(
+		Effect.forever(
+			Effect.gen(function* () {
+				yield* Effect.sleep(CONNECTION_DIAGNOSTIC_INTERVAL_MS);
+
+				const timer = diagnostics.checkTimer();
+
+				if (
+					timer.timerDelayMs >= CONNECTION_DIAGNOSTIC_INTERVAL_MS ||
+					Math.abs(timer.clockDriftMs) >= CONNECTION_DIAGNOSTIC_INTERVAL_MS
+				) {
+					logger.warn(
+						"Agent session timer delayed or clock changed",
+						JSON.stringify({ ...diagnostics.snapshot(), ...timer }),
+					);
+				}
+			}),
+		),
+	);
 
 	const getRunningJob = (jobId: string) => Ref.get(runningJobsRef).pipe(Effect.map((map) => map.get(jobId)));
 
@@ -75,8 +106,10 @@ export const createControllerSession = (
 		});
 	};
 
-	const offerOutbound = (message: AgentWireMessage) => {
-		return Queue.offer(outboundQueue, message);
+	const offerOutbound = (message: AgentMessage) => {
+		return Effect.try(() => createAgentMessage(message.type, message.payload)).pipe(
+			Effect.flatMap((wire) => Queue.offer(outboundQueue, { message, wire })),
+		);
 	};
 
 	const offerInbound = (message: ControllerWireMessage) => {
@@ -105,6 +138,9 @@ export const createControllerSession = (
 		}
 
 		isClosed = true;
+		logger.info("Agent session closed", JSON.stringify(diagnostics.snapshot()));
+
+		void Effect.runPromise(Fiber.interrupt(diagnosticFiber)).catch(() => {});
 		void Effect.runPromise(abortRunningJobs).catch(() => {});
 		void Effect.runPromise(Fiber.interrupt(writerFiber)).catch(() => {});
 		void Effect.runPromise(Fiber.interrupt(processorFiber)).catch(() => {});
@@ -127,12 +163,18 @@ export const createControllerSession = (
 	const writerFiber = Effect.runFork(
 		Effect.forever(
 			Effect.gen(function* () {
-				const message = yield* Queue.take(outboundQueue);
+				const { message, wire } = yield* Queue.take(outboundQueue);
+
 				yield* Effect.sync(() => {
 					try {
-						ws.send(message);
+						ws.send(wire);
 					} catch (error) {
 						handleSendFailure(toMessage(error));
+						return;
+					}
+
+					if (message.type === "heartbeat.pong") {
+						diagnostics.onHeartbeatSent("pong", message.payload.sentAt);
 					}
 				});
 			}),
@@ -167,7 +209,13 @@ export const createControllerSession = (
 				if (parsed.data.type === "filesystem.command") {
 					yield* Effect.forkChild(handledCommand);
 				} else {
-					yield* handledCommand;
+					diagnostics.onProcessing(parsed.data.type);
+
+					if (parsed.data.type === "heartbeat.ping") {
+						diagnostics.onHeartbeatProcessed("ping", parsed.data.payload.sentAt);
+					}
+
+					yield* handledCommand.pipe(Effect.ensuring(Effect.sync(diagnostics.onProcessed)));
 				}
 			}),
 		),
@@ -176,15 +224,16 @@ export const createControllerSession = (
 	return {
 		onOpen: () => {
 			void Effect.runPromise(
-				offerOutbound(
-					createAgentMessage("agent.ready", {
+				offerOutbound({
+					type: "agent.ready",
+					payload: {
 						agentId: "",
 						protocolVersion: AGENT_PROTOCOL_VERSION,
 						hostname: resolveResticHostname(),
 						platform: process.platform,
 						capabilities,
-					}),
-				),
+					},
+				}),
 			).catch((error) => {
 				logger.error(`Failed to queue ready message: ${toMessage(error)}`);
 			});
@@ -194,6 +243,8 @@ export const createControllerSession = (
 				logger.warn("Agent received a non-text message");
 				return;
 			}
+
+			diagnostics.onReceived();
 
 			void Effect.runPromise(offerInbound(data as ControllerWireMessage)).catch((error) => {
 				logger.error(`Failed to queue inbound message: ${toMessage(error)}`);

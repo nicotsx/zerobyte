@@ -7,7 +7,12 @@ import { randomUUID } from "node:crypto";
 import { Effect } from "effect";
 import { eq } from "drizzle-orm";
 import { fromPartial } from "@total-typescript/shoehorn";
-import { parseAgentMessage, type AgentWireMessage, type FilesystemCommand } from "@zerobyte/contracts/agent-protocol";
+import {
+	createAgentMessage,
+	parseAgentMessage,
+	type AgentWireMessage,
+	type FilesystemCommand,
+} from "@zerobyte/contracts/agent-protocol";
 import { db } from "~/server/db/db";
 import { agentsTable } from "~/server/db/schema";
 import { withContext } from "~/server/core/request-context";
@@ -144,13 +149,16 @@ describe("trusted filesystem source browsing", () => {
 				(_agentId: string, _organizationId: string, command: FilesystemCommand) =>
 					Effect.tryPromise(async () => {
 						const outboundMessages: AgentWireMessage[] = [];
+
+						const offerOutbound: ControllerCommandContext["offerOutbound"] = (message) =>
+							Effect.sync(() => {
+								outboundMessages.push(createAgentMessage(message.type, message.payload));
+								return true;
+							});
+
 						const context = fromPartial<ControllerCommandContext>({
 							trustedRoots: registry,
-							offerOutbound: (message: AgentWireMessage) =>
-								Effect.sync(() => {
-									outboundMessages.push(message);
-									return true;
-								}),
+							offerOutbound,
 						});
 						const commandId = randomUUID();
 						const payload = { commandId, command };

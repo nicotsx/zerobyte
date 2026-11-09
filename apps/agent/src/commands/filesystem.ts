@@ -1,9 +1,5 @@
 import { Effect, Data } from "effect";
-import {
-	createAgentMessage,
-	type FilesystemCommand,
-	type FilesystemCommandPayload,
-} from "@zerobyte/contracts/agent-protocol";
+import type { FilesystemCommand, FilesystemCommandPayload } from "@zerobyte/contracts/agent-protocol";
 import { toMessage } from "@zerobyte/core/utils";
 import { browseFilesystem, listFiles, getStatFs } from "@zerobyte/core/filesystem";
 import type { ControllerCommandContext } from "../context";
@@ -59,24 +55,26 @@ export const handleFilesystemCommand = (context: ControllerCommandContext, paylo
 	return Effect.gen(function* () {
 		const command = yield* executeFilesystemCommand(context, payload.command);
 
-		yield* context.offerOutbound(
-			createAgentMessage("filesystem.commandResult", {
+		yield* context.offerOutbound({
+			type: "filesystem.commandResult",
+			payload: {
 				commandId: payload.commandId,
 				status: "success",
 				command,
-			}),
-		);
+			},
+		});
 
 		return command;
 	}).pipe(
 		Effect.catch((error) =>
-			context.offerOutbound(
-				createAgentMessage("filesystem.commandResult", {
+			context.offerOutbound({
+				type: "filesystem.commandResult",
+				payload: {
 					commandId: payload.commandId,
 					status: "error",
 					error: toMessage(error.cause),
-				}),
-			),
+				},
+			}),
 		),
 	);
 };

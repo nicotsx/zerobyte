@@ -3,7 +3,12 @@ import { tmpdir } from "node:os";
 import { Effect } from "effect";
 import { afterEach, expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
-import { createControllerMessage, parseControllerMessage, parseAgentMessage } from "@zerobyte/contracts/agent-protocol";
+import {
+	createControllerMessage,
+	createAgentMessage,
+	parseControllerMessage,
+	parseAgentMessage,
+} from "@zerobyte/contracts/agent-protocol";
 import * as node from "@zerobyte/core/node";
 import { config } from "~/server/core/config";
 import { withContext } from "~/server/core/request-context";
@@ -71,9 +76,9 @@ test.each([
 					Effect.sync(() => {
 						jobs.delete(jobId);
 					}),
-				offerOutbound: (wire) =>
+				offerOutbound: (outbound) =>
 					Effect.sync(() => {
-						const message = parseAgentMessage(wire);
+						const message = parseAgentMessage(createAgentMessage(outbound.type, outbound.payload));
 						if (!message?.success) throw new Error("Invalid agent event");
 						if (message.data.type === "backup.completed") {
 							result = {

@@ -3,7 +3,12 @@ import { Effect } from "effect";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
-import { parseAgentMessage, type BackupCancelPayload, type BackupRunPayload } from "@zerobyte/contracts/agent-protocol";
+import {
+	createAgentMessage,
+	parseAgentMessage,
+	type BackupCancelPayload,
+	type BackupRunPayload,
+} from "@zerobyte/contracts/agent-protocol";
 import * as resticServer from "@zerobyte/core/restic/server";
 import { handleBackupCancelCommand } from "../backup-cancel";
 import { handleBackupRunCommand } from "../backup-run";
@@ -696,7 +701,7 @@ test("waits for running-job registration before returning to the processor loop"
 			}),
 		offerOutbound: (message) =>
 			Effect.sync(() => {
-				outboundMessages.push(message);
+				outboundMessages.push(createAgentMessage(message.type, message.payload));
 				return true;
 			}),
 	};
