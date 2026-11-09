@@ -1212,6 +1212,40 @@ describe("Connection replacement", () => {
 });
 
 describe("Failure cleanup", () => {
+	test("invalid outbound payloads fail their callers without disconnecting the agent", async () => {
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket("invalid-outbound");
+
+		await connect(controller, socket);
+		await markReady(controller, socket);
+
+		try {
+			await expect(
+				run(controller.sendBackup(LOCAL_AGENT_ID, { ...backupPayload, webhookTimeoutMs: Number.NaN })),
+			).rejects.toThrow();
+			await expect(
+				run(
+					controller.runFilesystemCommand(LOCAL_AGENT_ID, "org-1", {
+						name: "filesystem.listFiles",
+						source: { rootId: "root", relativePath: "" },
+						offset: Number.NaN,
+						limit: 10,
+					}),
+				),
+			).rejects.toThrow();
+
+			await expect(run(controller.sendBackup(LOCAL_AGENT_ID, backupPayload))).resolves.toBe(true);
+			await vi.waitFor(() => expect(socket.send).toHaveBeenCalledOnce());
+
+			expect(socket.close).not.toHaveBeenCalled();
+			expect(controller.isReady(LOCAL_AGENT_ID)).toBe(true);
+		} finally {
+			await run(controller.stop);
+		}
+	});
+
 	test("a reentrant close from the transport callback tears down once", async () => {
 		mockServe();
 

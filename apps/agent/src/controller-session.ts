@@ -36,7 +36,7 @@ export const createControllerSession = (
 ): ControllerSession => {
 	let isClosed = false;
 
-	const outboundQueue = Effect.runSync(Queue.bounded<AgentMessage>(64));
+	const outboundQueue = Effect.runSync(Queue.bounded<{ message: AgentMessage; wire: string }>(64));
 	const inboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));
 
 	const runningJobsRef = Effect.runSync(Ref.make<Map<string, RunningJob>>(new Map()));
@@ -107,7 +107,9 @@ export const createControllerSession = (
 	};
 
 	const offerOutbound = (message: AgentMessage) => {
-		return Queue.offer(outboundQueue, message);
+		return Effect.try(() => createAgentMessage(message.type, message.payload)).pipe(
+			Effect.flatMap((wire) => Queue.offer(outboundQueue, { message, wire })),
+		);
 	};
 
 	const offerInbound = (message: ControllerWireMessage) => {
@@ -161,10 +163,11 @@ export const createControllerSession = (
 	const writerFiber = Effect.runFork(
 		Effect.forever(
 			Effect.gen(function* () {
-				const message = yield* Queue.take(outboundQueue);
+				const { message, wire } = yield* Queue.take(outboundQueue);
+
 				yield* Effect.sync(() => {
 					try {
-						ws.send(createAgentMessage(message.type, message.payload));
+						ws.send(wire);
 					} catch (error) {
 						handleSendFailure(toMessage(error));
 						return;

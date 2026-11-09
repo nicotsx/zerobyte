@@ -56,7 +56,7 @@ export const createAgentConnection = (
 	const started = Effect.runSync(Deferred.make<void>());
 	const inbox = createAgentMessageInbox();
 	const heartbeatUpdates = Effect.runSync(Queue.sliding<number>(1));
-	const outbound = Effect.runSync(Queue.bounded<ControllerMessage>(MAX_QUEUED_MESSAGES));
+	const outbound = Effect.runSync(Queue.bounded<{ message: ControllerMessage; wire: string }>(MAX_QUEUED_MESSAGES));
 	const pendingCommands = new Map<string, PendingCommand>();
 
 	const readyDeadline = performance.now() + READY_TIMEOUT_MS;
@@ -109,13 +109,15 @@ export const createAgentConnection = (
 		Effect.suspend(() => {
 			if (closeReason !== null) return Effect.succeed(false);
 
-			return Queue.offer(outbound, message).pipe(
+			return Effect.try(() => createControllerMessage(message.type, message.payload)).pipe(
+				Effect.flatMap((wire) =>
+					Queue.offer(outbound, { message, wire }).pipe(Effect.catchCause(() => Effect.succeed(false))),
+				),
 				Effect.tap((accepted) =>
 					Effect.sync(() => {
 						if (accepted && message.type === "heartbeat.ping") diagnostics.onPingQueued();
 					}),
 				),
-				Effect.catchCause(() => Effect.succeed(false)),
 			);
 		});
 
@@ -240,9 +242,9 @@ export const createAgentConnection = (
 
 	const processOutbound = Effect.forever(
 		Queue.take(outbound).pipe(
-			Effect.flatMap((message) =>
+			Effect.flatMap(({ message, wire }) =>
 				Effect.try({
-					try: () => transport.send(createControllerMessage(message.type, message.payload)),
+					try: () => transport.send(wire),
 					catch: toMessage,
 				}).pipe(
 					Effect.tap((sent) =>
@@ -303,6 +305,7 @@ export const createAgentConnection = (
 	const sendHeartbeats = Effect.forever(
 		Effect.sleep("15 seconds").pipe(
 			Effect.andThen(Effect.suspend(() => send({ type: "heartbeat.ping", payload: { sentAt: Date.now() } }))),
+			Effect.catch((error) => logger.effect.error(`Failed to queue agent heartbeat: ${toMessage(error)}`)),
 		),
 	);
 

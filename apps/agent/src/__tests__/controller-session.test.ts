@@ -121,6 +121,58 @@ test("emits backup.failed when a backup command hits a restic error", async () =
 	}
 });
 
+test("an invalid completion reports job failure without aborting another backup", async () => {
+	let runningSignal: AbortSignal | undefined;
+	const backup = vi.fn<ReturnType<typeof resticServer.createRestic>["backup"]>();
+
+	backup
+		.mockImplementationOnce((_config, _source, options) => {
+			runningSignal = options.signal;
+			return Effect.never;
+		})
+		.mockReturnValueOnce(Effect.succeed({ exitCode: Number.NaN, result: null, warningDetails: null }));
+
+	vi.spyOn(resticServer, "createRestic").mockReturnValue(fromPartial({ backup }));
+
+	const close = vi.fn();
+	const outboundMessages: string[] = [];
+	const session = createControllerSession(
+		fromPartial({ send: (message: string) => outboundMessages.push(message), close }),
+		{ trustedRoots: createTrustedRootRegistry({ builtinLocal: true }), builtinLocal: true },
+	);
+
+	try {
+		session.onOpen();
+		session.onMessage(createControllerMessage("backup.run", createRunPayload({ jobId: "running-job" })));
+		await vi.waitFor(() => expect(backup).toHaveBeenCalledOnce());
+
+		session.onMessage(createControllerMessage("backup.run", createRunPayload({ jobId: "invalid-job" })));
+
+		await vi.waitFor(() => {
+			expect(outboundMessages.map((message) => JSON.parse(message))).toContainEqual(
+				expect.objectContaining({
+					type: "backup.failed",
+					payload: expect.objectContaining({ jobId: "invalid-job" }),
+				}),
+			);
+		});
+
+		session.onMessage(createControllerMessage("heartbeat.ping", { sentAt: 456 }));
+
+		await vi.waitFor(() => {
+			expect(outboundMessages.map((message) => JSON.parse(message))).toContainEqual({
+				type: "heartbeat.pong",
+				payload: { sentAt: 456 },
+			});
+		});
+
+		expect(runningSignal?.aborted).toBe(false);
+		expect(close).not.toHaveBeenCalled();
+	} finally {
+		session.close();
+	}
+});
+
 test("closes the websocket when an outbound send throws", async () => {
 	const close = vi.fn(() => undefined);
 	const session = createControllerSession(
