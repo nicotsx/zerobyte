@@ -395,6 +395,26 @@ describe("volumes security", () => {
 			expect(res.status).toBe(400);
 		});
 
+		test("returns a 409 without database details when the source name is taken", async () => {
+			const existing = await createManagedVolumeRecord(session.organizationId);
+
+			const res = await app.request("/api/v1/volumes", {
+				method: "POST",
+				headers: {
+					...session.headers,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({
+					sourceKind: "managed",
+					name: existing.name,
+					config: { backend: "directory", path: "/tmp" },
+				}),
+			});
+
+			expect(res.status).toBe(409);
+			expect(await res.json()).toEqual({ message: "A source with this name already exists" });
+		});
+
 		test("should mark provisioned volumes as managed", async () => {
 			const volume = await createManagedVolumeRecord(session.organizationId);
 
