@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { BadRequestError, InternalServerError, NotFoundError } from "http-errors-enhanced";
+import { BadRequestError, ConflictError, InternalServerError, NotFoundError } from "http-errors-enhanced";
 import { db } from "../../db/db";
 import { readVolume } from "../../db/volume";
 import { volumesTable } from "../../db/schema";
@@ -59,6 +59,18 @@ const preflightTrustedFilesystemSource = async (
 	await runEffectPromise(probeSource(agentId, organizationId, { rootId: trustedRootId, relativePath }), { signal });
 };
 
+const assertVolumeNameAvailable = async (name: string, organizationId: string, excludeId?: number) => {
+	const existing = await db.query.volumesTable.findFirst({
+		where: {
+			AND: [{ name }, { organizationId }, ...(excludeId === undefined ? [] : [{ NOT: { id: excludeId } }])],
+		},
+	});
+
+	if (existing) {
+		throw new ConflictError("A source with this name already exists");
+	}
+};
+
 const createVolume = async (body: CreateVolumeBody, signal?: AbortSignal) => {
 	const organizationId = getOrganizationId();
 	const normalizedName = normalizeRequiredName(body.name);
@@ -66,6 +78,8 @@ const createVolume = async (body: CreateVolumeBody, signal?: AbortSignal) => {
 	if (normalizedName === null) {
 		throw new BadRequestError("Volume name cannot be empty");
 	}
+
+	await assertVolumeNameAvailable(normalizedName, organizationId);
 
 	const shortId = generateShortId();
 	if (body.sourceKind === "filesystem") {
@@ -264,6 +278,7 @@ const updateVolume = async (shortId: ShortId, data: UpdateVolumeBody, signal?: A
 
 	const name = normalizeRequiredName(data.name ?? existing.name);
 	if (name === null) throw new BadRequestError("Volume name cannot be empty");
+	await assertVolumeNameAvailable(name, existing.organizationId, existing.id);
 
 	return existing.sourceKind === "filesystem"
 		? updateFilesystemVolume(existing, { ...data, name }, signal)
