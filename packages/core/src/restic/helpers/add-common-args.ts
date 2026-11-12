@@ -16,6 +16,10 @@ export const addCommonArgs = (
 		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
 	}
 
+	if (config?.backend === "s3" && config.storageClass) {
+		args.push("-o", `s3.storage-class=${config.storageClass}`);
+	}
+
 	if (env.AWS_S3_BUCKET_LOOKUP === "dns") {
 		args.push("-o", "s3.bucket-lookup=dns");
 	}

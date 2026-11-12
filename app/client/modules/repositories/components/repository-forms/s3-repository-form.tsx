@@ -48,6 +48,22 @@ export const S3RepositoryForm = ({ form }: Props) => {
 			/>
 			<FormField
 				control={form.control}
+				name="storageClass"
+				render={({ field }) => (
+					<FormItem>
+						<FormLabel>Storage class (optional)</FormLabel>
+						<FormControl>
+							<Input placeholder="STANDARD_IA" {...field} />
+						</FormControl>
+						<FormDescription>
+							Passed to restic as <code>s3.storage-class</code>. Use a class supported by your provider.
+						</FormDescription>
+						<FormMessage />
+					</FormItem>
+				)}
+			/>
+			<FormField
+				control={form.control}
 				name="accessKeyId"
 				render={({ field }) => (
 					<FormItem>
