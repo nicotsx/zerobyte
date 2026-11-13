@@ -9,11 +9,11 @@
 		"typecheck": "bun check --no-script"
 	},
 	"dependencies": {
-		"@inquirer/prompts": "^8.7.5",
+		"@inquirer/prompts": "^8.8.0",
 		"@zerobyte/contracts": "workspace:*",
 		"@zerobyte/core": "workspace:*",
-		"commander": "^15.0.0",
-		"effect": "^4.1.2",
+		"commander": "^15.1.0",
+		"effect": "^4.1.4",
 		"inquirer-file-selector": "^2.0.0",
 		"semver": "^7.8.6"
 	},
