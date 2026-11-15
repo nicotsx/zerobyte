@@ -19,6 +19,11 @@ import type { ControllerCommandContext, RunningJob } from "./context";
 import { getTrustedRootDescriptors, type TrustedRootRegistry } from "./trusted-roots";
 import { resticDeps } from "./restic/deps";
 
+// The controller pings every 15 seconds. Hearing nothing for this long means the connection is dead,
+// even when the operating system still reports the TCP socket as established.
+export const CONTROLLER_SILENCE_TIMEOUT_MS = 90_000;
+const CONTROLLER_SILENCE_CHECK_INTERVAL_MS = 15_000;
+
 export type ControllerSession = {
 	onOpen: () => void;
 	onMessage: (data: unknown) => void;
@@ -35,6 +40,7 @@ export const createControllerSession = (
 	},
 ): ControllerSession => {
 	let isClosed = false;
+	let lastReceivedAt = performance.now();
 
 	const outboundQueue = Effect.runSync(Queue.bounded<{ message: AgentMessage; wire: string }>(64));
 	const inboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));
@@ -72,6 +78,45 @@ export const createControllerSession = (
 						JSON.stringify({ ...diagnostics.snapshot(), ...timer }),
 					);
 				}
+			}),
+		),
+	);
+
+	// A close handshake never completes on a dead connection, so terminate drops the socket at once and fires onclose.
+	const forceCloseTransport = (code: number, reason: string) => {
+		const transport = ws as WebSocket & { terminate?: () => void };
+
+		if (typeof transport.terminate === "function") {
+			transport.terminate();
+			return;
+		}
+
+		ws.close(code, reason);
+	};
+
+	const silenceWatchdogFiber = Effect.runFork(
+		Effect.forever(
+			Effect.gen(function* () {
+				yield* Effect.sleep(CONTROLLER_SILENCE_CHECK_INTERVAL_MS);
+
+				const silentForMs = performance.now() - lastReceivedAt;
+
+				if (isClosed || silentForMs < CONTROLLER_SILENCE_TIMEOUT_MS) {
+					return;
+				}
+
+				yield* Effect.sync(() => {
+					logger.warn(
+						`No message from controller for ${Math.round(silentForMs / 1000)}s, dropping the connection to reconnect`,
+						JSON.stringify(diagnostics.snapshot()),
+					);
+
+					try {
+						forceCloseTransport(4000, "controller_silent");
+					} catch (error) {
+						logger.error(`Failed to close silent controller websocket: ${toMessage(error)}`);
+					}
+				});
 			}),
 		),
 	);
@@ -141,6 +186,7 @@ export const createControllerSession = (
 		logger.info("Agent session closed", JSON.stringify(diagnostics.snapshot()));
 
 		void Effect.runPromise(Fiber.interrupt(diagnosticFiber)).catch(() => {});
+		void Effect.runPromise(Fiber.interrupt(silenceWatchdogFiber)).catch(() => {});
 		void Effect.runPromise(abortRunningJobs).catch(() => {});
 		void Effect.runPromise(Fiber.interrupt(writerFiber)).catch(() => {});
 		void Effect.runPromise(Fiber.interrupt(processorFiber)).catch(() => {});
@@ -152,7 +198,7 @@ export const createControllerSession = (
 		logger.error(`Closing agent session after an outbound websocket send failed: ${reason}`);
 
 		try {
-			ws.close();
+			forceCloseTransport(1011, "send_failed");
 		} catch (error) {
 			logger.error(`Failed to close controller websocket after send failure: ${toMessage(error)}`);
 		}
@@ -244,6 +290,7 @@ export const createControllerSession = (
 				return;
 			}
 
+			lastReceivedAt = performance.now();
 			diagnostics.onReceived();
 
 			void Effect.runPromise(offerInbound(data as ControllerWireMessage)).catch((error) => {

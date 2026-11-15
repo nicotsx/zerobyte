@@ -8,7 +8,7 @@ import waitForExpect from "wait-for-expect";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { createControllerMessage, parseAgentMessage } from "@zerobyte/contracts/agent-protocol";
 import * as resticServer from "@zerobyte/core/restic/server";
-import { createControllerSession } from "../controller-session";
+import { CONTROLLER_SILENCE_TIMEOUT_MS, createControllerSession } from "../controller-session";
 import { createTrustedRootRegistry } from "../trusted-roots";
 import { createRunPayload } from "../commands/__tests__/backup-run.harness";
 
@@ -427,6 +427,57 @@ test.each([
 
 		expect(warn).toHaveBeenCalledOnce();
 		expect(info).toHaveBeenCalledOnce();
+	} finally {
+		session.close();
+	}
+});
+
+test("drops a silent controller connection so the agent reconnects", async () => {
+	vi.useFakeTimers({ toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+	vi.spyOn(logger, "warn").mockImplementation(() => {});
+	vi.spyOn(logger, "info").mockImplementation(() => {});
+	const terminate = vi.fn();
+	const close = vi.fn();
+	const session = createControllerSession(fromPartial({ send: vi.fn(), terminate, close }), {
+		trustedRoots: createTrustedRootRegistry(),
+	});
+
+	try {
+		session.onOpen();
+		session.onMessage(createControllerMessage("heartbeat.ping", { sentAt: 1 }));
+		await vi.advanceTimersByTimeAsync(CONTROLLER_SILENCE_TIMEOUT_MS - 15_000);
+
+		expect(terminate).not.toHaveBeenCalled();
+
+		await vi.advanceTimersByTimeAsync(30_000);
+
+		expect(terminate).toHaveBeenCalled();
+		expect(close).not.toHaveBeenCalled();
+		expect(logger.warn).toHaveBeenCalledWith(
+			expect.stringContaining("No message from controller"),
+			expect.any(String),
+		);
+	} finally {
+		session.close();
+	}
+});
+
+test("keeps a controller connection that keeps sending heartbeats", async () => {
+	vi.useFakeTimers({ toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
+	const terminate = vi.fn();
+	const session = createControllerSession(fromPartial({ send: vi.fn(), terminate }), {
+		trustedRoots: createTrustedRootRegistry(),
+	});
+
+	try {
+		session.onOpen();
+
+		for (let tick = 0; tick < 20; tick++) {
+			session.onMessage(createControllerMessage("heartbeat.ping", { sentAt: tick }));
+			await vi.advanceTimersByTimeAsync(15_000);
+		}
+
+		expect(terminate).not.toHaveBeenCalled();
 	} finally {
 		session.close();
 	}
