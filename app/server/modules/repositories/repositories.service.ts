@@ -24,7 +24,7 @@ import { logger } from "@zerobyte/core/node";
 import { parseRetentionCategories, type RetentionCategory } from "~/server/utils/retention-categories";
 import { repoMutex } from "../../core/repository-mutex";
 import { db } from "../../db/db";
-import { repositoriesTable, type Repository, type RepositoryInsert } from "../../db/schema";
+import { repositoriesTable, type RepositoryInsert } from "../../db/schema";
 import { cache, cacheKeys } from "../../utils/cache";
 import { runEffectPromise, toMessage } from "../../utils/errors";
 import { generateShortId } from "../../utils/id";
@@ -54,11 +54,12 @@ import { normalizeTrustedSourceRelativePath, trustedRootAllows } from "@zerobyte
 import type { Agent } from "../../db/schema";
 import { serverHasRuntimeFeature } from "~/server/lib/permission-service";
 import { LOCAL_AGENT_ID } from "../agents/constants";
+import { listRestoreMachines, resolveRestoreMachine } from "./helpers/restore-machines";
 
 const lsLimiters = new Map<string, Semaphore.Semaphore>();
 const RESTORE_TASK_RESOURCE_TYPE = "repository";
-const ORIGINAL_LOCATION_RESTORE_AGENT_MESSAGE =
-	"Original location restore is only available for snapshots of sources on the same machine as the repository. Restore to a custom location instead.";
+const ORIGINAL_LOCATION_RESTORE_MACHINE_MESSAGE =
+	"Original location restore on another machine is only available for snapshots of sources on that machine. Restore to a custom location instead.";
 
 const getBlockedRestoreTargets = () => {
 	return [
@@ -112,13 +113,13 @@ const findActiveDoctorTask = (organizationId: string, repositoryShortId: string)
 
 const assertOriginalLocationRestoreAllowed = async (
 	organizationId: string,
-	repository: Repository,
+	restoreAgentId: string,
 	snapshotTags?: string[] | null,
 ) => {
-	const storedOnAnotherMachine = isAgentRepository(repository);
+	const restoresOnAnotherMachine = restoreAgentId !== LOCAL_AGENT_ID;
 
 	if (!snapshotTags?.length) {
-		if (storedOnAnotherMachine) throw new BadRequestError(ORIGINAL_LOCATION_RESTORE_AGENT_MESSAGE);
+		if (restoresOnAnotherMachine) throw new BadRequestError(ORIGINAL_LOCATION_RESTORE_MACHINE_MESSAGE);
 		return;
 	}
 
@@ -137,10 +138,10 @@ const assertOriginalLocationRestoreAllowed = async (
 		);
 	}
 
-	const sourcesOnRepositoryMachine =
-		schedules.length > 0 && schedules.every((schedule) => schedule.volume?.agentId === repository.agentId);
-	if (storedOnAnotherMachine && !sourcesOnRepositoryMachine) {
-		throw new BadRequestError(ORIGINAL_LOCATION_RESTORE_AGENT_MESSAGE);
+	const sourcesOnRestoreMachine =
+		schedules.length > 0 && schedules.every((schedule) => schedule.volume?.agentId === restoreAgentId);
+	if (restoresOnAnotherMachine && !sourcesOnRestoreMachine) {
+		throw new BadRequestError(ORIGINAL_LOCATION_RESTORE_MACHINE_MESSAGE);
 	}
 };
 const findRepository = async (shortId: ShortId) => {
@@ -157,6 +158,13 @@ const listRepositories = async () => {
 	const repositories = await db.query.repositoriesTable.findMany({ where: { organizationId } });
 
 	return presentRepositories(repositories);
+};
+
+const listRestoreMachinesForRepository = async (shortId: ShortId) => {
+	const repository = await findRepository(shortId);
+	if (!repository) throw new NotFoundError("Repository not found");
+
+	return listRestoreMachines(getOrganizationId(), repository);
 };
 
 const findRepositoryAgent = async (
@@ -489,6 +497,7 @@ const restoreSnapshot = async (
 		delete?: boolean;
 		targetPath?: string;
 		overwrite?: OverwriteMode;
+		targetAgentId?: string;
 	},
 ) => {
 	const organizationId = getOrganizationId();
@@ -498,9 +507,10 @@ const restoreSnapshot = async (
 		throw new NotFoundError("Repository not found");
 	}
 
-	assertAgentOnline(repository.agentId);
+	const { targetPath, targetAgentId, ...restoreExecutionOptions } = options ?? {};
+	const restoreAgentId = await resolveRestoreMachine(organizationId, repository, targetAgentId);
+	assertAgentOnline(restoreAgentId);
 
-	const { targetPath, ...restoreExecutionOptions } = options ?? {};
 	const target = targetPath || "/";
 	// The agent and restic treat exactly "/" as the original location, and path resolution would turn it into a drive
 	// root on a Windows server.
@@ -510,7 +520,7 @@ const restoreSnapshot = async (
 	const hasNonPosixSnapshotPaths = snapshot.paths.some((path) => !path.startsWith("/"));
 
 	if (restoresToOriginalLocation) {
-		await assertOriginalLocationRestoreAllowed(organizationId, repository, snapshot.tags);
+		await assertOriginalLocationRestoreAllowed(organizationId, restoreAgentId, snapshot.tags);
 	}
 
 	if (hasNonPosixSnapshotPaths && restoresToOriginalLocation) {
@@ -520,7 +530,7 @@ const restoreSnapshot = async (
 	}
 
 	const basePath = hasNonPosixSnapshotPaths ? "/" : findCommonAncestor(snapshot.paths);
-	if (!isAgentRepository(repository)) assertAllowedControllerLocalRestoreTarget(target);
+	if (restoreAgentId === LOCAL_AGENT_ID) assertAllowedControllerLocalRestoreTarget(target);
 
 	const activeRestore = findActiveRestoreTask(organizationId, repository.shortId, snapshotId);
 	if (activeRestore) {
@@ -532,7 +542,7 @@ const restoreSnapshot = async (
 		organizationId,
 		repositoryId: repository.id,
 		repositoryShortId: repository.shortId,
-		agentId: repository.agentId,
+		agentId: restoreAgentId,
 		repositoryName: repository.name,
 		repositoryConfig,
 		snapshotId,
@@ -975,6 +985,7 @@ export const repositoriesService = {
 	listSnapshots,
 	listSnapshotFiles,
 	restoreSnapshot,
+	listRestoreMachines: listRestoreMachinesForRepository,
 	dumpSnapshot,
 	getSnapshotDetails,
 	checkHealth,

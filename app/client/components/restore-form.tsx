@@ -23,12 +23,17 @@ import { RestoreProgress } from "~/client/components/restore-progress";
 import { cancelTaskMutation, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useRestoreTask } from "~/client/modules/repositories/restore-tasks";
 import { OVERWRITE_MODES, type OverwriteMode } from "@zerobyte/core/restic";
-import type { Repository, Snapshot } from "~/client/lib/types";
+import type { Repository, RestoreMachine, Snapshot, Volume } from "~/client/lib/types";
 import { handleRepositoryError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "~/client/lib/utils";
 import { useTimeFormat } from "~/client/lib/datetime";
-import { getRestoreMachineName } from "~/client/lib/restore-context";
+import {
+	getDefaultRestoreMachine,
+	getOriginalLocationUnavailableReason,
+	getRestoreMachineName,
+} from "~/client/lib/restore-context";
+import { isAgentRepository } from "@zerobyte/contracts/backup-context";
 
 type RestoreLocation = "original" | "custom";
 
@@ -38,7 +43,10 @@ interface RestoreFormProps {
 	returnPath: string;
 	queryBasePath?: string;
 	displayBasePath?: string;
-	originalLocationUnavailableReason: string | null;
+	/** Volume of the backup job that created the snapshot, when known. */
+	sourceVolume?: Volume;
+	/** Machines the snapshot can be restored on; the first one stores the repository. */
+	restoreMachines: RestoreMachine[];
 }
 
 export function RestoreForm({
@@ -47,13 +55,21 @@ export function RestoreForm({
 	returnPath,
 	queryBasePath,
 	displayBasePath,
-	originalLocationUnavailableReason,
+	sourceVolume,
+	restoreMachines,
 }: RestoreFormProps) {
 	const snapshotId = snapshot.short_id;
 	const navigate = useNavigate();
 	const { formatDateTime } = useTimeFormat();
 
 	const snapshotBasePath = queryBasePath ?? "/";
+
+	const [restoreMachine, setRestoreMachine] = useState(() => getDefaultRestoreMachine(restoreMachines, sourceVolume));
+	const originalLocationUnavailableReason = getOriginalLocationUnavailableReason(
+		snapshot,
+		sourceVolume,
+		restoreMachine,
+	);
 	const restoreRequiresCustomTarget = originalLocationUnavailableReason !== null;
 
 	const [requestedRestoreLocation, setRestoreLocation] = useState<RestoreLocation>(
@@ -73,12 +89,25 @@ export function RestoreForm({
 	const restoreLocation = restoreRequiresCustomTarget ? "custom" : requestedRestoreLocation;
 	const canRestore = restoreLocation === "original" || hasCustomTargetPath;
 
-	const machineName = getRestoreMachineName(repository);
+	const machineName = getRestoreMachineName(restoreMachine);
 	const locationName = machineName ?? "this server";
-	const canDownload = machineName === null && selectedPathCount <= 1;
-	const downloadBlockedReason = machineName
+	const storedOnAnotherMachine = isAgentRepository(repository);
+	const canDownload = !storedOnAnotherMachine && selectedPathCount <= 1;
+	const downloadBlockedReason = storedOnAnotherMachine
 		? "Snapshot download is not available for repositories stored on another machine."
 		: "Download is available only for one selected item, or with no selection to download everything.";
+
+	const selectRestoreMachine = (agentId: string) => {
+		const machine = restoreMachines.find((candidate) => candidate.agentId === agentId);
+		if (!machine) return;
+
+		setRestoreMachine(machine);
+		// Paths are machine-specific, so a new machine starts from its own default destination.
+		setCustomTargetPath("");
+		setRestoreLocation(
+			getOriginalLocationUnavailableReason(snapshot, sourceVolume, machine) === null ? "original" : "custom",
+		);
+	};
 
 	const {
 		data: restoreStart,
@@ -131,10 +160,13 @@ export function RestoreForm({
 				excludeXattr: excludeXattrValues.length > 0 ? excludeXattrValues : undefined,
 				targetPath,
 				overwrite: overwriteMode,
+				targetAgentId: restoreMachine.agentId === repository.agentId ? undefined : restoreMachine.agentId,
 			},
 		});
 	}, [
 		repository.shortId,
+		repository.agentId,
+		restoreMachine.agentId,
 		snapshotId,
 		excludeXattr,
 		canRestore,
@@ -268,6 +300,23 @@ export function RestoreForm({
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
+							{restoreMachines.length > 1 && (
+								<div className="space-y-2">
+									<Label htmlFor="restore-machine">Machine</Label>
+									<Select value={restoreMachine.agentId} onValueChange={selectRestoreMachine}>
+										<SelectTrigger id="restore-machine" className="w-full">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{restoreMachines.map((machine) => (
+												<SelectItem key={machine.agentId} value={machine.agentId}>
+													{getRestoreMachineName(machine) ?? "This server"}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+							)}
 							<fieldset className="min-w-0 grid grid-cols-1 gap-2" aria-label="Restore destination">
 								<Button
 									type="button"

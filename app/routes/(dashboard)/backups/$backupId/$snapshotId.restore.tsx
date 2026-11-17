@@ -1,9 +1,13 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getBackupSchedule } from "~/client/api-client";
-import { getRepositoryOptions, getSnapshotDetailsOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import {
+	getRepositoryOptions,
+	getSnapshotDetailsOptions,
+	listRestoreMachinesOptions,
+} from "~/client/api-client/@tanstack/react-query.gen";
 import { restoreTasksOptions } from "~/client/modules/repositories/restore-tasks";
 import { RestoreSnapshotPage } from "~/client/modules/repositories/routes/restore-snapshot";
-import { getRestoreContext } from "~/client/lib/restore-context";
+import { getSnapshotBrowsePaths } from "~/client/lib/restore-context";
 
 export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId/restore")({
 	component: RouteComponent,
@@ -16,7 +20,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 		}
 
 		const activeRestoreTasksOptions = restoreTasksOptions(schedule.data.repository.shortId, params.snapshotId);
-		const [snapshot, repository] = await Promise.all([
+		const [snapshot, repository, , restoreMachines] = await Promise.all([
 			context.queryClient.ensureQueryData({
 				...getSnapshotDetailsOptions({
 					path: {
@@ -29,13 +33,18 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 				...getRepositoryOptions({ path: { shortId: schedule.data.repository.shortId } }),
 			}),
 			context.queryClient.ensureQueryData(activeRestoreTasksOptions),
+			context.queryClient.fetchQuery(
+				listRestoreMachinesOptions({ path: { shortId: schedule.data.repository.shortId } }),
+			),
 		]);
 
 		return {
 			snapshot,
 			repository,
 			schedule: schedule.data,
-			...getRestoreContext(snapshot, schedule.data.volume, repository),
+			sourceVolume: schedule.data.volume,
+			restoreMachines,
+			...getSnapshotBrowsePaths(snapshot, schedule.data.volume),
 		};
 	},
 	head: ({ params }) => ({
@@ -62,7 +71,7 @@ export const Route = createFileRoute("/(dashboard)/backups/$backupId/$snapshotId
 
 function RouteComponent() {
 	const { backupId } = Route.useParams();
-	const { snapshot, repository, queryBasePath, displayBasePath, originalLocationUnavailableReason } =
+	const { snapshot, repository, sourceVolume, restoreMachines, queryBasePath, displayBasePath } =
 		Route.useLoaderData();
 
 	return (
@@ -71,7 +80,8 @@ function RouteComponent() {
 			repository={repository}
 			queryBasePath={queryBasePath}
 			displayBasePath={displayBasePath}
-			originalLocationUnavailableReason={originalLocationUnavailableReason}
+			sourceVolume={sourceVolume}
+			restoreMachines={restoreMachines}
 			snapshot={snapshot}
 		/>
 	);

@@ -139,7 +139,15 @@ In **Sources**, create a source and choose **Another machine**. Select your conn
 
 Save the source, then create a backup job using it. Choose a repository that the remote machine can reach and set your schedule. Local repositories on the Zerobyte server and rclone repositories aren't available for remote sources because they rely on paths or configuration on the Zerobyte server.
 
-Restores of cloud and network repositories run on the Zerobyte server. To recover files from a remote backup, restore them to a custom location on the server or download them, then copy them back to the remote machine.
+To recover files from a remote backup, restore them on the machine that backed them up. See [Restore on the machine](#restore-on-the-machine).
+
+## Restore on the machine
+
+Snapshots in a repository on the Zerobyte server, such as S3, REST, or SFTP, can be restored on any remote machine that has a backup job using that repository. That machine already holds the repository's credentials, so restoring there gives it no new access. Machines without such a job can't restore from the repository. Local repositories on the server and rclone repositories aren't reachable from remote machines and are always restored on the server.
+
+On the restore page, choose the machine under **Machine**. It defaults to the machine the snapshot came from. **Original location** puts files back at their original paths on that machine and is only available when the snapshot's source is on it. **Custom location** takes an absolute path on the machine. Either way, the restored paths must be inside one of the machine's allowed locations. The machine runs the restore and reads the repository directly, so the files never pass through the Zerobyte server.
+
+With Docker, the agent can only write where the container's mount is writable. The example above mounts `/data` read-only (`:ro`), so before restoring into it, remove `:ro` from that volume and recreate the container, or restore to a custom location in another allowed location whose mount is writable.
 
 ## Store backups on the machine
 
