@@ -174,7 +174,7 @@ test.each([
 	],
 	[
 		"original location with a basePath inside a trusted root and no includes",
-		{ target: "/", options: { organizationId: "org-1", basePath: trustedRootPath } },
+		{ target: "/", options: { organizationId: "org-1", basePath: path.join(trustedRootPath, "photos") } },
 		true,
 	],
 	[
@@ -245,7 +245,7 @@ test("rejects a target that reaches a blocked directory through a symlink inside
 	const { context, runningJobs, messages } = createContext();
 	// A root as broad as "/" contains the blocked directories, so only the blocked-target check can stop this.
 	context.trustedRoots = createTrustedRootRegistry({
-		roots: [{ id: "all", label: "All", path: "/", allowBackup: true }],
+		roots: [{ id: "all", label: "All", path: "/", allowBackup: true, allowRepository: true }],
 	});
 
 	try {
@@ -269,4 +269,69 @@ test("rejects a target that reaches a blocked directory through a symlink inside
 		fs.rmSync(link);
 		fs.rmSync(blockedDirectory, { recursive: true, force: true });
 	}
+});
+
+const runRejectedRestore = async (payload: RestoreRunPayload, trustedRoots = createRegistry()) => {
+	const restic = vi
+		.spyOn(resticServer, "createRestic")
+		.mockReturnValue(fromPartial({ restore: () => Effect.succeed(summary) }));
+	const { context, runningJobs, messages } = createContext();
+	context.trustedRoots = trustedRoots;
+
+	await Effect.runPromise(
+		Effect.gen(function* () {
+			yield* handleRestoreRunCommand(context, payload);
+			yield* Effect.promise(() =>
+				waitForExpect(() => {
+					expect(runningJobs.has(payload.restoreId)).toBe(false);
+				}),
+			);
+		}),
+	);
+
+	expect(restic).not.toHaveBeenCalled();
+	return messages().find((message) => message?.success && message.data.type === "restore.failed")?.data;
+};
+
+const repositoryOverlapFailure = {
+	type: "restore.failed",
+	payload: expect.objectContaining({
+		error: "Restore target path must not overlap the repository being restored from",
+	}),
+};
+
+test.each([
+	["a custom target", { target: path.dirname(os.tmpdir()) }],
+	[
+		"an original location include",
+		{ target: "/", options: { organizationId: "org-1", include: [path.dirname(os.tmpdir())] } },
+	],
+	["an original location basePath", { target: "/", options: { organizationId: "org-1", basePath: "/" } }],
+])("rejects %s that contains a blocked directory", async (_name, overrides) => {
+	// A root as broad as "/" contains the blocked directories, so only the blocked-target check can stop this.
+	const trustedRoots = createTrustedRootRegistry({
+		roots: [{ id: "all", label: "All", path: "/", allowBackup: true, allowRepository: true }],
+	});
+
+	expect(await runRejectedRestore(createRunPayload(overrides as Partial<RestoreRunPayload>), trustedRoots)).toEqual({
+		type: "restore.failed",
+		payload: expect.objectContaining({ error: expect.stringContaining("Restore target path is not allowed") }),
+	});
+});
+
+test.each([
+	["the repository itself", path.join(trustedRootPath, "repository")],
+	["a directory inside the repository", path.join(trustedRootPath, "repository", "data")],
+	["a directory containing the repository", trustedRootPath],
+])("rejects a restore into %s", async (_name, target) => {
+	expect(await runRejectedRestore(createRunPayload({ target }))).toEqual(repositoryOverlapFailure);
+});
+
+test("rejects a restore into a repository named by its trusted root", async () => {
+	const payload = createRunPayload({
+		target: path.join(trustedRootPath, "relative-repository"),
+		repositoryConfig: { backend: "local", trustedRootId: "restores", path: "relative-repository" },
+	});
+
+	expect(await runRejectedRestore(payload)).toEqual(repositoryOverlapFailure);
 });
