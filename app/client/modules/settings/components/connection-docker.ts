@@ -25,7 +25,7 @@ export const createDockerCompose = (controllerUrl: string, code: string, machine
       ZEROBYTE_CONTROLLER_URL: ${composeString(origin)}${insecureEnvironment}
       ZEROBYTE_AGENT_ENROLLMENT_CODE: ${composeString(code)}
       ZEROBYTE_AGENT_ROOTS: >-
-        [{"id":"files-1","label":"Files","path":"/data","allowBackup":true}]
+        [{"id":"files-1","label":"Files","path":"/data","allowBackup":true,"allowRepository":false}]
     volumes:
       - agent-config:/var/lib/zerobyte-agent
       - agent-cache:/var/cache/zerobyte-agent

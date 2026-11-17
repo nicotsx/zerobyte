@@ -60,3 +60,47 @@ test("lists and saves compatible SFTP mirrors and consistently explains rejected
 		expect(await backupsService.getMirrors(schedule.shortId)).toMatchObject([{ repositoryId: mirror.shortId }]);
 	});
 });
+
+test("only accepts mirrors that the source machine can reach", async () => {
+	const source = await createTestRepository({
+		type: "local",
+		agentId: "source-machine",
+		config: { backend: "local", path: "/srv/source" },
+	});
+	const otherMachine = await createTestRepository({
+		type: "local",
+		agentId: "other-machine",
+		config: { backend: "local", path: "/srv/other" },
+	});
+	const serverLocal = await createTestRepository({
+		type: "local",
+		config: { backend: "local", path: "/srv/server" },
+	});
+	const rest = await createTestRepository({
+		type: "rest",
+		config: { backend: "rest", url: "https://rest.example.test" } as RepositoryConfig,
+	});
+	const schedule = await createTestBackupSchedule({ repositoryId: source.id });
+
+	await withContext({ organizationId: TEST_ORG_ID }, async () => {
+		await expect(
+			backupsService.updateMirrors(schedule.shortId, {
+				mirrors: [{ repositoryId: otherMachine.shortId, enabled: true }],
+			}),
+		).rejects.toThrow("Repositories stored on different machines cannot mirror each other.");
+		await expect(
+			backupsService.updateMirrors(schedule.shortId, {
+				mirrors: [{ repositoryId: serverLocal.shortId, enabled: true }],
+			}),
+		).rejects.toThrow("can only mirror with repositories that machine can reach");
+
+		const mirrors = await backupsService.updateMirrors(schedule.shortId, {
+			mirrors: [{ repositoryId: rest.shortId, enabled: true }],
+		});
+
+		expect(mirrors).toMatchObject([{ repositoryId: rest.shortId, enabled: true }]);
+		expect(await backupsService.getMirrorCompatibility(schedule.shortId)).toContainEqual(
+			expect.objectContaining({ repositoryId: serverLocal.shortId, compatible: false }),
+		);
+	});
+});

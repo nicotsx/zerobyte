@@ -72,6 +72,7 @@ export const repositoriesController = new Hono()
 			body.config,
 			body.compressionMode,
 			body.autoCheckEnabled,
+			body.agentId,
 		);
 
 		return c.json({ message: "Repository created", repository: res.repository }, 201);

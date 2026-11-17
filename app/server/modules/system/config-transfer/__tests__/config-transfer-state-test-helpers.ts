@@ -10,6 +10,7 @@ const durableAndRuntimeFields = {
 		durable: [
 			"name",
 			"type",
+			"agentId",
 			"config",
 			"compressionMode",
 			"autoCheckEnabled",
@@ -127,6 +128,9 @@ const getMappedName = <T>(namesById: Map<T, string>, id: T, label: string) => {
 	return name;
 };
 
+const getMachineName = async (agentId: string) =>
+	agentId === "local" ? "local" : (await db.query.agentsTable.findFirst({ where: { id: agentId } }))?.name;
+
 export const loadConfigState = async (organizationId: string) => {
 	const [repositories, volumes, backupSchedules, notificationDestinations] = await Promise.all([
 		db.query.repositoriesTable.findMany({ where: { organizationId } }),
@@ -169,6 +173,7 @@ export const loadConfigState = async (organizationId: string) => {
 			await Promise.all(
 				repositories.map(async (repository) => ({
 					name: repository.name,
+					machine: await getMachineName(repository.agentId),
 					type: repository.type,
 					config: await decryptRepositoryConfig(repository.config),
 					compressionMode: repository.compressionMode,
@@ -191,10 +196,7 @@ export const loadConfigState = async (organizationId: string) => {
 					sourceKind: volume.sourceKind,
 					trustedRootId: volume.trustedRootId,
 					relativePath: volume.relativePath,
-					machine:
-						volume.agentId === "local"
-							? "local"
-							: (await db.query.agentsTable.findFirst({ where: { id: volume.agentId } }))?.name,
+					machine: await getMachineName(volume.agentId),
 					autoRemount: volume.autoRemount,
 				})),
 			),

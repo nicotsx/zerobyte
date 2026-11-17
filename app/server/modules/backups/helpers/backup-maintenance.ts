@@ -1,13 +1,15 @@
 import { logger } from "@zerobyte/core/node";
 import type { RetentionPolicy } from "@zerobyte/core/restic";
 import type { Repository } from "../../../db/schema";
-import { restic } from "../../../core/restic";
+import { resticForAgent } from "../../repositories/repository-restic";
 import { repoMutex } from "../../../core/repository-mutex";
 import { cache, cacheKeys } from "../../../utils/cache";
 import { runEffectPromise } from "../../../utils/errors";
 
 type ForgetExecutionPlan = {
 	repository: Repository;
+	/** Machine that runs restic. Matches the repository's own machine except for mirrors placed on another one. */
+	agentId: string;
 	retentionPolicy: RetentionPolicy;
 	tag: string;
 	organizationId: string;
@@ -17,7 +19,7 @@ type ForgetExecutionPlan = {
 export async function applyRetentionPolicy(plan: ForgetExecutionPlan) {
 	logger.info(`running retention policy (forget) for repository ${plan.repository.id}`);
 	await runEffectPromise(
-		restic.forget(plan.repository.config, plan.retentionPolicy, {
+		resticForAgent(plan.agentId).forget(plan.repository.config, plan.retentionPolicy, {
 			tag: plan.tag,
 			organizationId: plan.organizationId,
 			signal: plan.signal,

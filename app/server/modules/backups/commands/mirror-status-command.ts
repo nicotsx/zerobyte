@@ -1,7 +1,8 @@
 import type { Repository } from "~/server/db/schema";
 import type { TaskResult } from "~/schemas/tasks";
 import { repoMutex } from "../../../core/repository-mutex";
-import { restic } from "../../../core/restic";
+import { getMirrorPlacement } from "@zerobyte/contracts/backup-context";
+import { resticForAgent } from "../../repositories/repository-restic";
 import { runEffectPromise } from "../../../utils/errors";
 import { runTaskLifecycle } from "../../tasks/tasks.lifecycle";
 import { taskStore } from "../../tasks/tasks.store";
@@ -49,17 +50,22 @@ const getLockRequests = (plan: MirrorStatusPlan, taskId: string) => {
 };
 
 const getMirrorStatus = async (plan: MirrorStatusPlan, signal: AbortSignal): Promise<MirrorStatusTaskResult> => {
+	const placement = getMirrorPlacement(plan.sourceRepository, plan.mirrorRepository);
+	if (!placement.compatible) {
+		throw new Error(placement.reason);
+	}
+
 	const peerAbort = new AbortController();
 	const lookupSignal = AbortSignal.any([signal, peerAbort.signal]);
 	const sourceLookup = runEffectPromise(
-		restic.snapshots(plan.sourceRepository.config, {
+		resticForAgent(placement.agentId).snapshots(plan.sourceRepository.config, {
 			tags: [plan.scheduleShortId],
 			organizationId: plan.organizationId,
 			signal: lookupSignal,
 		}),
 	);
 	const mirrorLookup = runEffectPromise(
-		restic.snapshots(plan.mirrorRepository.config, {
+		resticForAgent(placement.agentId).snapshots(plan.mirrorRepository.config, {
 			tags: [plan.scheduleShortId],
 			organizationId: plan.organizationId,
 			signal: lookupSignal,
