@@ -204,13 +204,9 @@ test("creates a repository on a remote machine in one of its locations that allo
 	await userEvent.click(await screen.findByRole("combobox", { name: "Machine" }));
 	expect(screen.queryByRole("option", { name: "This server" })).toBeNull();
 	await userEvent.click(await screen.findByRole("option", { name: "NAS · Online" }));
-	await userEvent.click(await screen.findByRole("combobox", { name: "Location" }));
-	expect(
-		(await screen.findByRole("option", { name: "Photos · Repositories disabled" })).getAttribute("aria-disabled"),
-	).toBe("true");
-	await userEvent.click(screen.getByRole("option", { name: "Backup disk" }));
-	await userEvent.click(screen.getByRole("button", { name: "Choose folder" }));
-	await userEvent.click(screen.getByRole("button", { name: "Select entire location" }));
+	await userEvent.click(await screen.findByRole("button", { name: "Choose directory" }));
+	expect(screen.queryByText("Photos")).toBeNull();
+	await userEvent.click(screen.getByText("Backup disk"));
 	expect(screen.getByText("/{unique-id}")).toBeTruthy();
 	await userEvent.type(screen.getByLabelText("Name"), "Repository 1");
 	await userEvent.click(screen.getByRole("button", { name: "Create repository" }));
@@ -247,7 +243,7 @@ test("explains how to allow repositories when the machine has no such location",
 	await userEvent.click(await screen.findByRole("option", { name: "NAS · Online" }));
 
 	expect(await screen.findByText(/No location on NAS allows repositories/)).toBeTruthy();
-	expect(screen.queryByRole("combobox", { name: "Location" })).toBeNull();
+	expect(screen.queryByRole("button", { name: "Choose directory" })).toBeNull();
 });
 
 test("a local repository on this server does not ask for a machine", async () => {
@@ -258,9 +254,9 @@ test("a local repository on this server does not ask for a machine", async () =>
 	expect(((await screen.findByLabelText("This server")) as HTMLInputElement).checked).toBe(true);
 	await selectBackend("Local");
 
-	expect(await screen.findByText("Repository Directory")).toBeTruthy();
+	expect(await screen.findByText("Directory path")).toBeTruthy();
 	expect(screen.queryByRole("combobox", { name: "Machine" })).toBeNull();
-	expect(screen.queryByRole("combobox", { name: "Location" })).toBeNull();
+	expect(screen.queryByRole("button", { name: "Choose directory" })).toBeNull();
 });
 
 test("initializes and updates scheduled health checks without adding it to repository config", async () => {

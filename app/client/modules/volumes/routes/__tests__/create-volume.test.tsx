@@ -69,10 +69,8 @@ test("submits a remote source without managed configuration", async () => {
 	await userEvent.type(screen.getByLabelText("Name"), "Remote archive");
 	await userEvent.click(await screen.findByLabelText("Machine"));
 	await userEvent.click(screen.getByRole("option", { name: "Archive node · Online" }));
-	await userEvent.click(screen.getByLabelText("Allowed location"));
-	await userEvent.click(screen.getByRole("option", { name: "Family photos" }));
-	await userEvent.click(screen.getByRole("button", { name: "Choose folder" }));
-	await userEvent.click(screen.getByRole("button", { name: "Select entire location" }));
+	await userEvent.click(screen.getByRole("button", { name: "Choose directory" }));
+	await userEvent.click(screen.getByText("Family photos"));
 	await userEvent.click(screen.getByRole("button", { name: "Create Source" }));
 
 	await waitFor(() =>

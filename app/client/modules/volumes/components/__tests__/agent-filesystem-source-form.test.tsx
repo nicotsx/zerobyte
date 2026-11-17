@@ -38,11 +38,9 @@ const renderForm = (props: Partial<React.ComponentProps<typeof AgentFilesystemSo
 	return onSubmit;
 };
 
-const chooseLocation = async () => {
+const chooseMachine = async () => {
 	await userEvent.click(await screen.findByLabelText("Machine"));
 	await userEvent.click(screen.getByRole("option", { name: "Archive · Online" }));
-	await userEvent.click(screen.getByLabelText("Allowed location"));
-	await userEvent.click(screen.getByRole("option", { name: "Photos" }));
 };
 
 afterEach(cleanup);
@@ -52,9 +50,9 @@ test("creates a source for an entire allowed location", async () => {
 	const onSubmit = renderForm();
 
 	await userEvent.type(screen.getByLabelText("Name"), "Family archive");
-	await chooseLocation();
-	await userEvent.click(screen.getByRole("button", { name: "Choose folder" }));
-	await userEvent.click(screen.getByRole("button", { name: "Select entire location" }));
+	await chooseMachine();
+	await userEvent.click(screen.getByRole("button", { name: "Choose directory" }));
+	await userEvent.click(screen.getByText("Photos"));
 	expect(screen.getByText("Entire Photos")).toBeTruthy();
 
 	await userEvent.click(screen.getByText("Save"));
@@ -69,15 +67,63 @@ test("creates a source for an entire allowed location", async () => {
 	);
 });
 
-test("requires an explicit folder choice", async () => {
+test("creates a source for a directory inside one of several allowed locations", async () => {
+	const browsed: string[] = [];
+	server.use(
+		http.get("/api/v1/volumes/source-machines", () =>
+			HttpResponse.json([
+				{
+					...machine,
+					trustedRoots: [
+						{ id: "photos", label: "Photos", canBackup: true },
+						{ id: "music", label: "Music", canBackup: true },
+						{ id: "repos", label: "Repositories only", canBackup: false, canStoreRepository: true },
+					],
+				},
+			]),
+		),
+		http.get("/api/v1/volumes/filesystem/browse", ({ request }) => {
+			const query = new URL(request.url).searchParams;
+			browsed.push(`${query.get("agentId")}:${query.get("rootId")}:${query.get("path")}`);
+			return HttpResponse.json({
+				path: "",
+				directories: [{ name: "albums", path: "albums", type: "directory" }],
+			});
+		}),
+	);
+	const onSubmit = renderForm();
+
+	await userEvent.type(screen.getByLabelText("Name"), "Albums");
+	await chooseMachine();
+	await userEvent.click(screen.getByRole("button", { name: "Choose directory" }));
+	expect(screen.getByText("Music")).toBeTruthy();
+	expect(screen.queryByText("Repositories only")).toBeNull();
+	await userEvent.click(screen.getByTitle("Expand Photos"));
+	await userEvent.click(await screen.findByText("albums"));
+	expect(screen.getByText("Photos/albums")).toBeTruthy();
+
+	await userEvent.click(screen.getByText("Save"));
+
+	await waitFor(() =>
+		expect(onSubmit.mock.calls[0]?.[0]).toEqual({
+			name: "Albums",
+			agentId: "archive",
+			trustedRootId: "photos",
+			relativePath: "albums",
+		}),
+	);
+	expect(browsed[0]).toBe("archive:photos:");
+});
+
+test("requires an explicit directory choice", async () => {
 	serveMachines([machine]);
 	const onSubmit = renderForm();
 
 	await userEvent.type(screen.getByLabelText("Name"), "Family archive");
-	await chooseLocation();
+	await chooseMachine();
 	await userEvent.click(screen.getByText("Save"));
 
-	expect(await screen.findByText("Choose the entire location or a folder")).toBeTruthy();
+	expect(await screen.findByText("Choose a directory")).toBeTruthy();
 	expect(onSubmit).not.toHaveBeenCalled();
 });
 

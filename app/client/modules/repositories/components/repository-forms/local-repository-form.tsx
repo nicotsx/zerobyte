@@ -19,7 +19,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { listSourceMachinesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { FolderSelector } from "~/client/components/folder-selector";
 import { getMachineStatus, isMachineAvailable, machineStatusLabels } from "~/client/lib/machine-status";
-import { TrustedRootBrowser } from "~/client/modules/volumes/components/trusted-root-browser";
+import { MachineDirectoryBrowser } from "~/client/modules/volumes/components/machine-directory-browser";
 
 type Props = {
 	form: UseFormReturn<RepositoryFormValues>;
@@ -29,9 +29,6 @@ type Props = {
 	onAnotherMachine: boolean;
 	agentName?: string | null;
 };
-
-/** Repositories on another machine store a path relative to the chosen location; "." is the location itself. */
-const toBrowserValue = (path: string | undefined) => (path ? (path === "." ? "" : path) : null);
 
 export const LocalRepositoryForm = ({ form, exactPath, mode, onAnotherMachine, agentName }: Props) => {
 	const getConstants = useServerFn(getServerConstants);
@@ -47,8 +44,8 @@ export const LocalRepositoryForm = ({ form, exactPath, mode, onAnotherMachine, a
 	const machine = machines.find((candidate) => candidate.id === agentId);
 	const machineLabel = mode === "update" ? agentName : machine?.name;
 	const machineIsOnline = machine !== undefined && isMachineAvailable(machine);
-	const root = machine?.trustedRoots.find((candidate) => candidate.id === trustedRootId);
-	const hasRepositoryLocation = machine?.trustedRoots.some((candidate) => candidate.canStoreRepository) === true;
+	const repositoryRoots = machine?.trustedRoots.filter((candidate) => candidate.canStoreRepository === true) ?? [];
+	const hasRepositoryLocation = repositoryRoots.length > 0;
 
 	return (
 		<>
@@ -113,69 +110,35 @@ export const LocalRepositoryForm = ({ form, exactPath, mode, onAnotherMachine, a
 				</p>
 			)}
 
-			{onAnotherMachine && machine && hasRepositoryLocation && (
-				<FormField
-					control={form.control}
-					name="trustedRootId"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Location</FormLabel>
-							<Select
-								value={field.value ?? ""}
-								disabled={!machineIsOnline}
-								onValueChange={(value) => {
-									field.onChange(value);
-									form.setValue("path", "");
-								}}
-							>
-								<FormControl>
-									<SelectTrigger className="w-full">
-										<SelectValue placeholder="Choose a location" />
-									</SelectTrigger>
-								</FormControl>
-								<SelectContent>
-									{machine.trustedRoots.map((candidate) => (
-										<SelectItem
-											key={candidate.id}
-											value={candidate.id}
-											disabled={!candidate.canStoreRepository}
-										>
-											{candidate.label}
-											{!candidate.canStoreRepository && " · Repositories disabled"}
-										</SelectItem>
-									))}
-								</SelectContent>
-							</Select>
-							<FormDescription>
-								Locations on {machineLabel ?? "the machine"} that allow repositories (
-								<code>"allowRepository": true</code> in its <code>ZEROBYTE_AGENT_ROOTS</code>).
-							</FormDescription>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
-			)}
-
 			<FormField
 				control={form.control}
 				name="path"
 				render={({ field }) => (
 					<FormItem>
-						<FormLabel>Repository Directory</FormLabel>
-						{onAnotherMachine && machine && root ? (
-							<TrustedRootBrowser
-								key={`${machine.id}:${root.id}`}
+						<FormLabel>Directory path</FormLabel>
+						{onAnotherMachine && machine && hasRepositoryLocation ? (
+							<MachineDirectoryBrowser
+								key={machine.id}
 								agentId={machine.id}
-								rootId={root.id}
-								rootLabel={root.label}
-								value={toBrowserValue(field.value)}
+								roots={repositoryRoots}
+								value={
+									trustedRootId && field.value
+										? {
+												rootId: trustedRootId,
+												relativePath: field.value === "." ? "" : field.value,
+											}
+										: null
+								}
 								disabled={!machineIsOnline}
 								suffix={!exactPath && <span className="text-muted-foreground">/{"{unique-id}"}</span>}
-								onChange={(relativePath) => field.onChange(relativePath || ".")}
+								onChange={({ rootId, relativePath }) => {
+									form.setValue("trustedRootId", rootId);
+									field.onChange(relativePath || ".");
+								}}
 							/>
 						) : onAnotherMachine ? (
 							<div className="text-sm font-mono bg-muted px-3 py-2 rounded-md border text-muted-foreground">
-								Choose a machine and location first
+								Choose a machine first
 							</div>
 						) : (
 							<FormControl>
