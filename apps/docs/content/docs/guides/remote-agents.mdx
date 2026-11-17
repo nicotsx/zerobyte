@@ -135,7 +135,7 @@ Zerobyte can browse and back up files inside these locations. Files outside them
 
 ## Create a backup
 
-In **Sources**, create a source and choose **Another machine**. Select your connected machine and an allowed location. You can back up the whole location or browse to a folder inside it.
+In **Sources**, create a source and choose **Another machine**. Select your connected machine, then choose a **Directory path**: the browser lists the machine's allowed locations, and you can select a whole location or expand it to pick a folder inside it.
 
 Save the source, then create a backup job using it. Choose a repository that the remote machine can reach and set your schedule. Local repositories on the Zerobyte server and rclone repositories aren't available for remote sources because they rely on paths or configuration on the Zerobyte server.
 
@@ -143,7 +143,7 @@ Restores of cloud and network repositories run on the Zerobyte server. To recove
 
 ## Store backups on the machine
 
-You can keep a local repository on the remote machine itself, for example on a backup disk attached to it. Add the disk's directory as an allowed location with `"allowRepository": true`, for example `{"id":"backup-disk","label":"Backup disk","path":"/backups","allowBackup":false,"allowRepository":true}`. Then create a **Local** repository, choose the machine under **Machine**, pick the location under **Location**, and browse to the directory that should hold the repository. Zerobyte stores the location and a path relative to it, so the machine's real paths never reach the server. The agent refuses locations that don't allow repositories.
+You can keep a local repository on the remote machine itself, for example on a backup disk attached to it. Add the disk's directory as an allowed location with `"allowRepository": true`, for example `{"id":"backup-disk","label":"Backup disk","path":"/backups","allowBackup":false,"allowRepository":true}`. Then create a **Local** repository, choose the machine under **Machine**, and under **Directory path** select a location that allows repositories or a directory inside it. Zerobyte stores the location and a path relative to it, so the machine's real paths never reach the server. The agent refuses locations that don't allow repositories.
 
 A repository stored on a machine:
 
