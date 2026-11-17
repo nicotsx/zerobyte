@@ -67,7 +67,7 @@ export async function validateBackupExecution(scheduleId: number, manual = false
 		};
 	}
 
-	const compatibility = getBackupRepositoryCompatibility(volume, repository.type);
+	const compatibility = getBackupRepositoryCompatibility(volume, repository);
 	if (!compatibility.compatible) {
 		return {
 			type: "failure",

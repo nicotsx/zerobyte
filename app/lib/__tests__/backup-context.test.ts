@@ -7,7 +7,9 @@ const repositoryTypes = Object.keys(REPOSITORY_BACKENDS) as RepositoryBackend[];
 describe("backup repository compatibility", () => {
 	test("allows every repository for sources on this server", () => {
 		for (const repositoryType of repositoryTypes) {
-			expect(getBackupRepositoryCompatibility({ agentId: "local" }, repositoryType)).toEqual({
+			expect(
+				getBackupRepositoryCompatibility({ agentId: "local" }, { type: repositoryType, agentId: "local" }),
+			).toEqual({
 				compatible: true,
 				reason: null,
 			});
@@ -15,7 +17,10 @@ describe("backup repository compatibility", () => {
 	});
 
 	test.each(repositoryTypes)("classifies remote source compatibility for %s", (repositoryType) => {
-		const compatibility = getBackupRepositoryCompatibility({ agentId: "remote-agent" }, repositoryType);
+		const compatibility = getBackupRepositoryCompatibility(
+			{ agentId: "remote-agent" },
+			{ type: repositoryType, agentId: "local" },
+		);
 		const expectedCompatible = repositoryType !== "local" && repositoryType !== "rclone";
 
 		expect(compatibility.compatible).toBe(expectedCompatible);

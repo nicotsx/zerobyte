@@ -5,12 +5,15 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { fromPartial } from "@total-typescript/shoehorn";
 import { LOCAL_FILESYSTEM_ROOT_ID } from "@zerobyte/contracts/volumes";
 import { MAX_AGENT_TRUSTED_ROOTS } from "@zerobyte/contracts/agent-protocol";
+import type { RepositoryConfig } from "@zerobyte/core/restic";
 import {
+	assertPathWithinTrustedRoots,
 	createTrustedRootRegistry,
 	getTrustedRootDescriptors,
 	normalizeTrustedRelativePath,
 	parseConfiguredRoots,
 	resolveFilesystemSource,
+	resolveRepositoryConfig,
 } from "../trusted-roots";
 
 const temporaryDirectories: string[] = [];
@@ -78,7 +81,9 @@ describe("trusted root configuration", () => {
 		const roots = [{ id: "home", label: "Home", path: rootPath, allowBackup: true }];
 		const registry = createTrustedRootRegistry({ roots });
 
-		expect(getTrustedRootDescriptors(registry)).toEqual([{ id: "home", label: "Home", canBackup: true }]);
+		expect(getTrustedRootDescriptors(registry)).toEqual([
+			{ id: "home", label: "Home", canBackup: true, canStoreRepository: false },
+		]);
 		expect(JSON.stringify(getTrustedRootDescriptors(registry))).not.toContain(rootPath);
 	});
 
@@ -149,8 +154,8 @@ describe("trusted root configuration", () => {
 		const registry = createTrustedRootRegistry({ builtinLocal: true });
 
 		expect(getTrustedRootDescriptors(registry)).toEqual([
-			{ id: "local-filesystem-c", label: "Local filesystem (C:)", canBackup: true },
-			{ id: "local-filesystem-d", label: "Local filesystem (D:)", canBackup: true },
+			{ id: "local-filesystem-c", label: "Local filesystem (C:)", canBackup: true, canStoreRepository: true },
+			{ id: "local-filesystem-d", label: "Local filesystem (D:)", canBackup: true, canStoreRepository: true },
 		]);
 		expect(registry.get("local-filesystem-c")?.canonicalPath).toBe("C:\\");
 		expect(registry.get("local-filesystem-d")?.canonicalPath).toBe("D:\\");
@@ -176,7 +181,7 @@ describe("trusted root configuration", () => {
 			const registry = createTrustedRootRegistry({ builtinLocal: true });
 
 			expect(getTrustedRootDescriptors(registry)).toEqual([
-				{ id: "local-filesystem-c", label: "Local filesystem (C:)", canBackup: true },
+				{ id: "local-filesystem-c", label: "Local filesystem (C:)", canBackup: true, canStoreRepository: true },
 			]);
 			expect(() =>
 				createTrustedRootRegistry({
@@ -195,6 +200,7 @@ describe("trusted root configuration", () => {
 				id: LOCAL_FILESYSTEM_ROOT_ID,
 				label: "Local filesystem",
 				canBackup: true,
+				canStoreRepository: true,
 			},
 		]);
 	});
@@ -212,7 +218,12 @@ describe("trusted root configuration", () => {
 		const roots = [{ id: "data", label: "Data", path: rootPath, allowBackup: false }];
 		const registry = createTrustedRootRegistry({ roots, builtinLocal });
 
-		expect(getTrustedRootDescriptors(registry)).toContainEqual({ id: "data", label: "Data", canBackup: false });
+		expect(getTrustedRootDescriptors(registry)).toContainEqual({
+			id: "data",
+			label: "Data",
+			canBackup: false,
+			canStoreRepository: false,
+		});
 		await expect(resolveFilesystemSource(registry, { rootId: "data", relativePath: "" })).rejects.toThrow(
 			"does not allow backups",
 		);
@@ -254,6 +265,223 @@ describe("trusted source resolution", () => {
 
 		await expect(resolveFilesystemSource(registry, { rootId: "data", relativePath: "escape" })).rejects.toThrow(
 			"through a symlink",
+		);
+	});
+});
+
+describe("trusted path containment", () => {
+	const createRegistry = (rootPath: string) =>
+		createTrustedRootRegistry({ roots: [{ id: "data", label: "Data", path: rootPath, allowBackup: true }] });
+
+	test("accepts a path that does not exist yet inside a root and returns its canonical form", async () => {
+		const rootPath = createTemporaryDirectory();
+		const registry = createRegistry(rootPath);
+
+		await expect(assertPathWithinTrustedRoots(registry, path.join(rootPath, "repositories", "new"))).resolves.toBe(
+			path.join(fs.realpathSync(rootPath), "repositories", "new"),
+		);
+	});
+
+	test("rejects relative paths even when they resolve inside a root", async () => {
+		const registry = createRegistry(createTemporaryDirectory());
+
+		await expect(assertPathWithinTrustedRoots(registry, "repository")).rejects.toThrow("trusted roots");
+	});
+
+	test("rejects paths outside every root, including siblings sharing a name prefix", async () => {
+		const rootPath = createTemporaryDirectory();
+		const registry = createRegistry(rootPath);
+
+		await expect(assertPathWithinTrustedRoots(registry, `${rootPath}-sibling/repo`)).rejects.toThrow(
+			"trusted roots",
+		);
+	});
+
+	test("rejects a missing path that reaches a symlink escaping the root", async () => {
+		const rootPath = createTemporaryDirectory();
+		const outsidePath = createTemporaryDirectory();
+		fs.symlinkSync(outsidePath, path.join(rootPath, "escape"));
+		const registry = createRegistry(rootPath);
+
+		await expect(
+			assertPathWithinTrustedRoots(registry, path.join(rootPath, "escape", "missing", "repository")),
+		).rejects.toThrow("trusted roots");
+	});
+
+	test("rejects a missing path beneath a dangling symlink that points outside the root", async () => {
+		const rootPath = createTemporaryDirectory();
+		const outsidePath = createTemporaryDirectory();
+		fs.symlinkSync(path.join(outsidePath, "missing"), path.join(rootPath, "escape"));
+		const registry = createRegistry(rootPath);
+
+		await expect(
+			assertPathWithinTrustedRoots(registry, path.join(rootPath, "escape", "repository")),
+		).rejects.toThrow("trusted roots");
+	});
+
+	test("rejects a missing path that climbs out of the root with '..'", async () => {
+		const rootPath = createTemporaryDirectory();
+		const registry = createRegistry(rootPath);
+
+		await expect(
+			assertPathWithinTrustedRoots(registry, path.join(rootPath, "missing", "..", "..", "repository")),
+		).rejects.toThrow("trusted roots");
+	});
+});
+
+describe("trusted repository resolution", () => {
+	const createRepositoryRegistry = (rootPath: string) =>
+		createTrustedRootRegistry({
+			roots: [{ id: "data", label: "Data", path: rootPath, allowBackup: true, allowRepository: true }],
+		});
+
+	test("resolves a relative path under a trusted root to its canonical absolute path", async () => {
+		const rootPath = createTemporaryDirectory();
+		const repositoryPath = path.join(rootPath, "repos", "one");
+		fs.mkdirSync(repositoryPath, { recursive: true });
+		const registry = createRepositoryRegistry(rootPath);
+
+		const resolved = await resolveRepositoryConfig(
+			registry,
+			fromPartial<RepositoryConfig>({ backend: "local", path: "repos/one", trustedRootId: "data" }),
+		);
+
+		expect(resolved).toEqual(
+			fromPartial<RepositoryConfig>({ backend: "local", path: fs.realpathSync.native(repositoryPath) }),
+		);
+		expect(resolved).not.toHaveProperty("trustedRootId");
+	});
+
+	test("resolves a relative path of '.' to the trusted root itself", async () => {
+		const rootPath = createTemporaryDirectory();
+		const registry = createRepositoryRegistry(rootPath);
+
+		const resolved = await resolveRepositoryConfig(
+			registry,
+			fromPartial<RepositoryConfig>({ backend: "local", path: ".", trustedRootId: "data" }),
+		);
+
+		expect(resolved).toEqual(
+			fromPartial<RepositoryConfig>({ backend: "local", path: fs.realpathSync.native(rootPath) }),
+		);
+	});
+
+	test("rejects a trusted root ID that is not registered", async () => {
+		const registry = createRepositoryRegistry(createTemporaryDirectory());
+
+		await expect(
+			resolveRepositoryConfig(
+				registry,
+				fromPartial<RepositoryConfig>({ backend: "local", path: "repo", trustedRootId: "missing" }),
+			),
+		).rejects.toThrow('Unknown trusted root "missing"');
+	});
+
+	test("rejects a root that does not allow repositories even when it allows backups", async () => {
+		const rootPath = createTemporaryDirectory();
+		const registry = createTrustedRootRegistry({
+			roots: [{ id: "data", label: "Data", path: rootPath, allowBackup: true }],
+		});
+
+		await expect(
+			resolveRepositoryConfig(
+				registry,
+				fromPartial<RepositoryConfig>({ backend: "local", path: "repo", trustedRootId: "data" }),
+			),
+		).rejects.toThrow('Trusted root "data" does not allow repositories');
+	});
+
+	test.each(["../outside", "nested/../../outside", "/etc"])("rejects relative path %j", async (relativePath) => {
+		const registry = createRepositoryRegistry(createTemporaryDirectory());
+
+		await expect(
+			resolveRepositoryConfig(
+				registry,
+				fromPartial<RepositoryConfig>({ backend: "local", path: relativePath, trustedRootId: "data" }),
+			),
+		).rejects.toThrow();
+	});
+
+	test.skipIf(process.platform === "win32")(
+		"rejects a path that reaches outside the root through a symlink",
+		async () => {
+			const rootPath = createTemporaryDirectory();
+			const outsidePath = createTemporaryDirectory();
+			fs.symlinkSync(outsidePath, path.join(rootPath, "escape"));
+			const registry = createRepositoryRegistry(rootPath);
+
+			await expect(
+				resolveRepositoryConfig(
+					registry,
+					fromPartial<RepositoryConfig>({
+						backend: "local",
+						path: "escape/repository",
+						trustedRootId: "data",
+					}),
+				),
+			).rejects.toThrow("Repository path escapes its trusted root");
+		},
+	);
+
+	test("accepts an absolute path inside a root that allows repositories", async () => {
+		const rootPath = createTemporaryDirectory();
+		const repositoryPath = path.join(rootPath, "repos", "new");
+		const registry = createRepositoryRegistry(rootPath);
+
+		await expect(
+			resolveRepositoryConfig(
+				registry,
+				fromPartial<RepositoryConfig>({ backend: "local", path: repositoryPath }),
+			),
+		).resolves.toEqual(fromPartial<RepositoryConfig>({ backend: "local", path: repositoryPath }));
+	});
+
+	test("rejects an absolute path inside a root that only allows backups", async () => {
+		const backupRootPath = createTemporaryDirectory();
+		const repositoryRootPath = createTemporaryDirectory();
+		const registry = createTrustedRootRegistry({
+			roots: [
+				{ id: "backup", label: "Backup", path: backupRootPath, allowBackup: true },
+				{ id: "repos", label: "Repos", path: repositoryRootPath, allowBackup: false, allowRepository: true },
+			],
+		});
+
+		await expect(
+			resolveRepositoryConfig(
+				registry,
+				fromPartial<RepositoryConfig>({ backend: "local", path: path.join(backupRootPath, "repo") }),
+			),
+		).rejects.toThrow("Repositories must be inside a trusted root that allows them");
+	});
+
+	test("returns non-local repository configs unchanged", async () => {
+		const config = fromPartial<RepositoryConfig>({
+			backend: "s3",
+			endpoint: "s3.example.com",
+			bucket: "bucket",
+			accessKeyId: "access",
+			secretAccessKey: "secret",
+		});
+
+		await expect(resolveRepositoryConfig(createTrustedRootRegistry(), config)).resolves.toBe(config);
+	});
+});
+
+describe("trusted browse resolution", () => {
+	test("browse accepts a repository-only root while backup resolution rejects it", async () => {
+		const rootPath = createTemporaryDirectory();
+		const registry = createTrustedRootRegistry({
+			roots: [{ id: "repos", label: "Repos", path: rootPath, allowBackup: false, allowRepository: true }],
+		});
+
+		await expect(
+			resolveFilesystemSource(registry, { rootId: "repos", relativePath: "" }, "browse"),
+		).resolves.toEqual({
+			canonicalPath: fs.realpathSync.native(rootPath),
+			containmentRootPath: fs.realpathSync.native(rootPath),
+		});
+		await expect(resolveFilesystemSource(registry, { rootId: "repos", relativePath: "" })).rejects.toThrow(
+			"does not allow backups",
 		);
 	});
 });

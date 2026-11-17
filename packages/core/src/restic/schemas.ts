@@ -65,6 +65,11 @@ export const localRepositoryConfigSchema = z
 	.object({
 		backend: z.literal("local"),
 		path: z.string().min(1),
+		/**
+		 * Set only for repositories stored on a remote agent: `path` is then relative to this trusted root ("." for the
+		 * root itself), and the agent resolves it to an absolute path on its own machine.
+		 */
+		trustedRootId: z.string().min(1).optional(),
 	})
 	.extend(baseRepositoryConfigSchema.shape);
 

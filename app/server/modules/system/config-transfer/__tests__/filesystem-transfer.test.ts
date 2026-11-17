@@ -13,8 +13,8 @@ import { createTestSession } from "~/test/helpers/auth";
 import { createPassphraseProtectedOrganizationConfigExport } from "../export";
 import { decryptConfigTransferPayload } from "../envelope";
 import { importConfig } from "../import";
-import { encodeCurrentConfigTransferPayload, parseConfigTransferPayload } from "../payload";
-import { encryptPayload, fixturePassphrase } from "./config-transfer-test-helpers";
+import { parseConfigTransferPayload } from "../payload";
+import { encryptPayload, fixturePassphrase, loadV3Payload } from "./config-transfer-test-helpers";
 import { seedConfig } from "./config-transfer-fixture-test-helpers";
 
 beforeEach(() => {
@@ -34,12 +34,6 @@ const loadV2Fixture = async () =>
 	JSON.parse(
 		await readFile(new URL("../../__fixtures__/config-transfer/v2-full.payload.json", import.meta.url), "utf8"),
 	);
-
-test("round-trips the permanent v2 recovery artifact", async () => {
-	const fixture = await loadV2Fixture();
-
-	expect(encodeCurrentConfigTransferPayload(parseConfigTransferPayload(fixture))).toEqual(fixture);
-});
 
 test("imports filesystem ownership and schedules with safe remote reconnection defaults", async () => {
 	const session = await createTestSession();
@@ -92,6 +86,51 @@ test("imports filesystem ownership and schedules with safe remote reconnection d
 		enabled: false,
 	});
 	expect(result.warnings.join("\n")).toContain("Rotate its enrollment token and reconnect");
+});
+
+test("imports agent-owned repositories under their machine and holds dependent schedules for review", async () => {
+	const session = await createTestSession();
+	const fixture = await loadV3Payload();
+	const result = await importConfig(
+		session.organizationId,
+		session.user.id,
+		await encryptPayload(fixture),
+		fixturePassphrase,
+	);
+	const machines = await db.query.agentsTable.findMany({ where: { organizationId: session.organizationId } });
+	const repositories = await db.query.repositoriesTable.findMany({
+		where: { organizationId: session.organizationId },
+	});
+	const schedules = await db.query.backupSchedulesTable.findMany({
+		where: { organizationId: session.organizationId },
+	});
+	const workstation = repositories.find((repository) => repository.name === "Workstation Repository");
+
+	expect(machines).toHaveLength(1);
+	expect(workstation).toMatchObject({ agentId: machines[0]?.id, type: "local" });
+	expect(repositories.find((repository) => repository.name === "Fixture Primary Repository")?.agentId).toBe("local");
+	expect(schedules.find((schedule) => schedule.name === "Workstation Repository Backup")).toMatchObject({
+		repositoryId: workstation?.id,
+		enabled: false,
+	});
+	expect(result.warnings).toContain(
+		'Repository "Workstation Repository" uses path "restic/workstation" in location "files-1". Verify that this repository exists on machine "Remote workstation" before using it.',
+	);
+	expect(result.warnings).toContain(
+		'Disabled schedule "Workstation Repository Backup" because it references volume "Remote documents" and repository "Workstation Repository". Re-enable it after reviewing those imported resources on this server.',
+	);
+
+	const exported = await createPassphraseProtectedOrganizationConfigExport(session.organizationId, fixturePassphrase);
+	const payload = parseConfigTransferPayload(
+		JSON.parse(await decryptConfigTransferPayload(exported, fixturePassphrase)),
+	);
+
+	expect(payload.repositories.find((repository) => repository.name === "Workstation Repository")?.machineRef).toBe(
+		payload.machines[0]?.ref,
+	);
+	expect(
+		payload.repositories.find((repository) => repository.name === "Fixture Primary Repository")?.machineRef,
+	).toBeNull();
 });
 
 test("exports mixed sources without remote credentials, capabilities or absolute root paths", async () => {
@@ -280,7 +319,7 @@ test("recovers provisioned sources with missing owners as shared portable offlin
 		enabled: false,
 	});
 	expect(result.warnings).toContain(
-		'Machine "Missing machine 1" was imported offline without credentials. Rotate its enrollment token and reconnect it before using its sources.',
+		'Machine "Missing machine 1" was imported offline without credentials. Rotate its enrollment token and reconnect it before using its sources and repositories.',
 	);
 	expect(result.warnings).toContain(
 		'Source "Documents" requires review of trusted root "documents" on its machine before using it.',

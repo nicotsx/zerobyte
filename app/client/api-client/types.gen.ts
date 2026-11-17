@@ -907,6 +907,7 @@ export type ListSourceMachinesResponses = {
             id: string;
             label: string;
             canBackup: boolean;
+            canStoreRepository?: boolean;
         }>;
     }>;
 };
@@ -1495,6 +1496,8 @@ export type ListRepositoriesResponses = {
         provisioningId: string | null;
         name: string;
         type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
+        agentId: string;
+        agentName: string | null;
         config: {
             backend: 's3';
             endpoint: string;
@@ -1538,6 +1541,7 @@ export type ListRepositoriesResponses = {
         } | {
             backend: 'local';
             path: string;
+            trustedRootId?: string;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
@@ -1679,6 +1683,7 @@ export type ListRepositoriesResponse = ListRepositoriesResponses[keyof ListRepos
 export type CreateRepositoryData = {
     body: {
         name: string;
+        agentId?: string;
         compressionMode?: 'off' | 'auto' | 'max';
         autoCheckEnabled?: boolean;
         config: {
@@ -1724,6 +1729,7 @@ export type CreateRepositoryData = {
         } | {
             backend: 'local';
             path: string;
+            trustedRootId?: string;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
@@ -1933,6 +1939,8 @@ export type GetRepositoryResponses = {
         provisioningId: string | null;
         name: string;
         type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
+        agentId: string;
+        agentName: string | null;
         config: {
             backend: 's3';
             endpoint: string;
@@ -1976,6 +1984,7 @@ export type GetRepositoryResponses = {
         } | {
             backend: 'local';
             path: string;
+            trustedRootId?: string;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
@@ -2162,6 +2171,7 @@ export type UpdateRepositoryData = {
         } | {
             backend: 'local';
             path: string;
+            trustedRootId?: string;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
@@ -2311,6 +2321,8 @@ export type UpdateRepositoryResponses = {
         provisioningId: string | null;
         name: string;
         type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
+        agentId: string;
+        agentName: string | null;
         config: {
             backend: 's3';
             endpoint: string;
@@ -2354,6 +2366,7 @@ export type UpdateRepositoryResponses = {
         } | {
             backend: 'local';
             path: string;
+            trustedRootId?: string;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
@@ -3141,6 +3154,8 @@ export type ListBackupSchedulesResponses = {
             provisioningId: string | null;
             name: string;
             type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
+            agentId: string;
+            agentName: string | null;
             config: {
                 backend: 's3';
                 endpoint: string;
@@ -3184,6 +3199,7 @@ export type ListBackupSchedulesResponses = {
             } | {
                 backend: 'local';
                 path: string;
+                trustedRootId?: string;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
@@ -3613,6 +3629,8 @@ export type GetBackupScheduleResponses = {
             provisioningId: string | null;
             name: string;
             type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
+            agentId: string;
+            agentName: string | null;
             config: {
                 backend: 's3';
                 endpoint: string;
@@ -3656,6 +3674,7 @@ export type GetBackupScheduleResponses = {
             } | {
                 backend: 'local';
                 path: string;
+                trustedRootId?: string;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
@@ -4066,6 +4085,8 @@ export type GetBackupScheduleForVolumeResponses = {
             provisioningId: string | null;
             name: string;
             type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
+            agentId: string;
+            agentName: string | null;
             config: {
                 backend: 's3';
                 endpoint: string;
@@ -4109,6 +4130,7 @@ export type GetBackupScheduleForVolumeResponses = {
             } | {
                 backend: 'local';
                 path: string;
+                trustedRootId?: string;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
@@ -4547,6 +4569,8 @@ export type GetScheduleMirrorsResponses = {
             provisioningId: string | null;
             name: string;
             type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
+            agentId: string;
+            agentName: string | null;
             config: {
                 backend: 's3';
                 endpoint: string;
@@ -4590,6 +4614,7 @@ export type GetScheduleMirrorsResponses = {
             } | {
                 backend: 'local';
                 path: string;
+                trustedRootId?: string;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
@@ -4777,6 +4802,8 @@ export type UpdateScheduleMirrorsResponses = {
             provisioningId: string | null;
             name: string;
             type: 'local' | 's3' | 'r2' | 'gcs' | 'azure' | 'rclone' | 'rest' | 'sftp';
+            agentId: string;
+            agentName: string | null;
             config: {
                 backend: 's3';
                 endpoint: string;
@@ -4820,6 +4847,7 @@ export type UpdateScheduleMirrorsResponses = {
             } | {
                 backend: 'local';
                 path: string;
+                trustedRootId?: string;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
@@ -7189,6 +7217,7 @@ export type ListAgentsResponses = {
                 id: string;
                 label: string;
                 canBackup: boolean;
+                canStoreRepository?: boolean;
             }>;
         };
         update: {
@@ -7257,6 +7286,7 @@ export type CreateRemoteAgentResponses = {
                     id: string;
                     label: string;
                     canBackup: boolean;
+                    canStoreRepository?: boolean;
                 }>;
             };
             update: {
@@ -7316,6 +7346,7 @@ export type RotateRemoteAgentTokenResponses = {
                     id: string;
                     label: string;
                     canBackup: boolean;
+                    canStoreRepository?: boolean;
                 }>;
             };
             update: {
@@ -7374,6 +7405,7 @@ export type RevokeRemoteAgentTokenResponses = {
                 id: string;
                 label: string;
                 canBackup: boolean;
+                canStoreRepository?: boolean;
             }>;
         };
         update: {

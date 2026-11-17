@@ -98,7 +98,7 @@ describe("remote agent enrollment API", () => {
 			platform: "linux",
 			agentVersion: "v0.30.0",
 			resticVersion: "0.18.1",
-			trustedRoots: [{ id: "documents", label: "Allowed location", canBackup: true }],
+			trustedRoots: [{ id: "documents", label: "Allowed location", canBackup: true, canStoreRepository: false }],
 		};
 		expect(agent?.capabilities).toEqual(expectedCapabilities);
 		expect(JSON.stringify(agent)).not.toContain("/srv/private");

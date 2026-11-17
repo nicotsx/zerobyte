@@ -32,7 +32,7 @@ export const Route = createFileRoute("/(dashboard)/repositories/$repositoryId/$s
 		return {
 			snapshot,
 			repository,
-			...getRestoreContext(snapshot, scheduleRes?.data?.volume),
+			...getRestoreContext(snapshot, scheduleRes?.data?.volume, repository),
 		};
 	},
 	staticData: {

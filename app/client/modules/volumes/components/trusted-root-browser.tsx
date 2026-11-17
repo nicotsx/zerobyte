@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { DirectoryBrowser } from "~/client/components/file-browsers/directory-browser";
 import { Button } from "~/client/components/ui/button";
 import { cn } from "~/client/lib/utils";
@@ -9,10 +9,11 @@ type Props = {
 	rootLabel: string;
 	value: string | null;
 	disabled?: boolean;
+	suffix?: ReactNode;
 	onChange: (relativePath: string) => void;
 };
 
-export const TrustedRootBrowser = ({ agentId, rootId, rootLabel, value, disabled, onChange }: Props) => {
+export const TrustedRootBrowser = ({ agentId, rootId, rootLabel, value, disabled, suffix, onChange }: Props) => {
 	const [browsing, setBrowsing] = useState(false);
 
 	const select = (relativePath: string) => {
@@ -25,10 +26,12 @@ export const TrustedRootBrowser = ({ agentId, rootId, rootLabel, value, disabled
 			<div className="flex items-center gap-2">
 				<div className="min-w-0 flex-1 text-sm font-mono bg-muted px-3 py-2 rounded-md border break-all">
 					<span className={cn({ hidden: value !== null })}>No folder selected</span>
-					<span className={cn({ hidden: !value })}>
-						{rootLabel}/{value}
+					<span className={cn({ hidden: value === null || (value === "" && !suffix) })}>
+						{rootLabel}
+						{value ? `/${value}` : ""}
+						{suffix}
 					</span>
-					<span className={cn({ hidden: value !== "" })}>Entire {rootLabel}</span>
+					<span className={cn({ hidden: value !== "" || !!suffix })}>Entire {rootLabel}</span>
 				</div>
 				<Button
 					type="button"
