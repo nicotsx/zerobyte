@@ -129,9 +129,30 @@ export const trustedRootDescriptorSchema = z.object({
 	id: trustedRootIdSchema,
 	label: z.string().trim().min(1).max(128),
 	canBackup: z.boolean(),
+	/** Absent in capabilities stored before repositories could live on agents; treated as false. */
+	canStoreRepository: z.boolean().optional(),
 });
 
 export type TrustedRootDescriptor = z.infer<typeof trustedRootDescriptorSchema>;
+
+export type TrustedRootPurpose = "backup" | "repository" | "browse";
+
+/** Browsing is needed both to pick a source folder and to pick a repository directory. */
+export const trustedRootAllows = (
+	root: Pick<TrustedRootDescriptor, "canBackup" | "canStoreRepository">,
+	purpose: TrustedRootPurpose,
+) => {
+	const canStoreRepository = root.canStoreRepository === true;
+
+	switch (purpose) {
+		case "backup":
+			return root.canBackup;
+		case "repository":
+			return canStoreRepository;
+		case "browse":
+			return root.canBackup || canStoreRepository;
+	}
+};
 
 export const LOCAL_FILESYSTEM_ROOT_ID = "local-filesystem";
 

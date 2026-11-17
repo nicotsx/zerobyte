@@ -50,7 +50,7 @@ export const BasicInfoSection = ({ form, volume }: BasicInfoSectionProps) => {
 								</SelectTrigger>
 								<SelectContent>
 									{repositoriesData?.map((repo) => {
-										const compatibility = getBackupRepositoryCompatibility(volume, repo.type);
+										const compatibility = getBackupRepositoryCompatibility(volume, repo);
 										const disabled = !compatibility.compatible;
 
 										return (

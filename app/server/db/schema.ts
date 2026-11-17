@@ -335,6 +335,7 @@ export const repositoriesTable = sqliteTable(
 		downloadLimitValue: real("download_limit_value").notNull().default(1),
 		downloadLimitUnit: text("download_limit_unit").$type<BandwidthUnit>().notNull().default("Mbps"),
 		autoCheckEnabled: int("auto_check_enabled", { mode: "boolean" }).notNull().default(true),
+		agentId: text("agent_id").notNull().default(LOCAL_AGENT_ID),
 		createdAt: int("created_at", { mode: "number" })
 			.notNull()
 			.default(sql`(unixepoch() * 1000)`),
@@ -347,6 +348,7 @@ export const repositoriesTable = sqliteTable(
 	},
 	(table) => [
 		uniqueIndex("repositories_table_org_provisioning_id_uidx").on(table.organizationId, table.provisioningId),
+		index("repositories_table_agent_id_idx").on(table.agentId),
 	],
 );
 export type Repository = typeof repositoriesTable.$inferSelect;

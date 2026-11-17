@@ -25,7 +25,7 @@ export { buildRepoUrl } from "./helpers/build-repo-url";
 export { buildRcloneRemotePath } from "./helpers/rclone-remote";
 export { cleanupTemporaryKeys } from "./helpers/cleanup-temporary-keys";
 export { validateCustomResticParams } from "./helpers/validate-custom-params";
-export { isResticError, ResticError, ResticLockError } from "./error";
+export { createResticError, isResticError, ResticError, ResticLockError } from "./error";
 export { resolveBackupTargets } from "./backup-selection";
 
 type LockRecoveryContext = {

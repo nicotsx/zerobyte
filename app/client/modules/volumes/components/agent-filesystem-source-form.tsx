@@ -12,16 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~
 import { useScrollToFormError } from "~/client/hooks/use-scroll-to-form-error";
 import { getMachineStatus, isMachineAvailable, machineStatusLabels } from "~/client/lib/machine-status";
 import { cn } from "~/client/lib/utils";
-import { TrustedRootBrowser } from "./trusted-root-browser";
+import { MachineDirectoryBrowser } from "./machine-directory-browser";
 
 const filesystemSourceSchema = z.object({
 	name: z.string().trim().min(2).max(32),
 	agentId: z.string().min(1, "Choose a machine"),
-	trustedRootId: z.string().min(1, "Choose an allowed location"),
+	trustedRootId: z.string().min(1, "Choose a directory"),
 	relativePath: z
 		.string()
 		.nullable()
-		.pipe(z.string({ error: "Choose the entire location or a folder" })),
+		.pipe(z.string({ error: "Choose a directory" })),
 });
 
 export type FilesystemSourceValues = z.output<typeof filesystemSourceSchema>;
@@ -44,7 +44,7 @@ export const AgentFilesystemSourceForm = ({ formId, initialValues, onSubmit }: P
 	const [agentId, trustedRootId] = useWatch({ control: form.control, name: ["agentId", "trustedRootId"] });
 	const machines = machinesQuery.data ?? [];
 	const machine = machines.find((item) => item.id === agentId);
-	const root = machine?.trustedRoots.find((item) => item.id === trustedRootId);
+	const backupRoots = machine?.trustedRoots.filter((item) => item.canBackup) ?? [];
 	const machineIsOnline = machine !== undefined && isMachineAvailable(machine);
 
 	return (
@@ -121,7 +121,7 @@ export const AgentFilesystemSourceForm = ({ formId, initialValues, onSubmit }: P
 							)}
 						/>
 
-						{(machines.length === 0 || machine?.trustedRoots.length === 0) && (
+						{(machines.length === 0 || (machine && backupRoots.length === 0)) && (
 							<p className="text-sm text-muted-foreground">
 								<span className={cn({ hidden: machines.length > 0 })}>
 									No machines are connected yet.
@@ -141,60 +141,27 @@ export const AgentFilesystemSourceForm = ({ formId, initialValues, onSubmit }: P
 							</p>
 						)}
 
-						{machine && machine.trustedRoots.length > 0 && (
-							<FormField
-								control={form.control}
-								name="trustedRootId"
-								render={({ field }) => (
-									<FormItem>
-										<FormLabel>Allowed location</FormLabel>
-										<Select
-											value={field.value}
-											disabled={!machineIsOnline}
-											onValueChange={(value) => {
-												field.onChange(value);
-												form.setValue("relativePath", null);
-											}}
-										>
-											<FormControl>
-												<SelectTrigger className="w-full">
-													<SelectValue placeholder="Choose an allowed location" />
-												</SelectTrigger>
-											</FormControl>
-											<SelectContent>
-												{machine.trustedRoots.map((item) => (
-													<SelectItem
-														key={item.id}
-														value={item.id}
-														disabled={!item.canBackup}
-													>
-														{item.label}
-														{!item.canBackup && " · Backups disabled"}
-													</SelectItem>
-												))}
-											</SelectContent>
-										</Select>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
-						)}
-
-						{root && (
+						{machine && backupRoots.length > 0 && (
 							<FormField
 								control={form.control}
 								name="relativePath"
 								render={({ field }) => (
 									<FormItem>
-										<FormLabel>Folder</FormLabel>
-										<TrustedRootBrowser
-											key={`${agentId}:${trustedRootId}`}
+										<FormLabel>Directory path</FormLabel>
+										<MachineDirectoryBrowser
+											key={agentId}
 											agentId={agentId}
-											rootId={trustedRootId}
-											rootLabel={root.label}
-											value={field.value}
+											roots={backupRoots}
+											value={
+												trustedRootId && field.value !== null && field.value !== undefined
+													? { rootId: trustedRootId, relativePath: field.value }
+													: null
+											}
 											disabled={!machineIsOnline}
-											onChange={field.onChange}
+											onChange={({ rootId, relativePath }) => {
+												form.setValue("trustedRootId", rootId);
+												field.onChange(relativePath);
+											}}
 										/>
 										<FormMessage />
 									</FormItem>

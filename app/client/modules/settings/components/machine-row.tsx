@@ -123,7 +123,8 @@ export function MachineRow({
 												>
 													<span className="break-words font-medium">{root.label}</span>
 													<span className="ml-2 text-muted-foreground">
-														Backup {root.canBackup ? "allowed" : "blocked"}
+														Backup {root.canBackup ? "allowed" : "blocked"} · Repositories{" "}
+														{root.canStoreRepository ? "allowed" : "blocked"}
 													</span>
 												</li>
 											);

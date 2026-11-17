@@ -635,7 +635,7 @@ function buildFileList(files: FileEntry[], foldersOnly = false): Node[] {
 			fileMap.set(file.path, {
 				kind: isFile ? "file" : "folder",
 				id: fileMap.size,
-				name,
+				name: file.name || name,
 				fullPath: file.path,
 				depth,
 				size: file.size,
