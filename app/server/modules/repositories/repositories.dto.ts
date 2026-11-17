@@ -350,6 +350,35 @@ export const restoreSnapshotBody = z.strictObject({
 	delete: z.boolean().optional(),
 	targetPath: z.string().optional(),
 	overwrite: overwriteModeSchema.optional(),
+	/** Machine to restore on; defaults to the machine that stores the repository. */
+	targetAgentId: z.string().optional(),
+});
+
+const restoreMachineSchema = z.object({
+	agentId: z.string(),
+	/** Null for this server. */
+	name: z.string().nullable(),
+});
+
+const listRestoreMachinesResponse = restoreMachineSchema.array();
+export type RestoreMachineDto = z.infer<typeof restoreMachineSchema>;
+export type ListRestoreMachinesDto = z.infer<typeof listRestoreMachinesResponse>;
+
+export const listRestoreMachinesDto = describeRoute({
+	description:
+		"List the machines a repository's snapshots can be restored on: the machine that stores the repository, then remote machines with a backup job using it",
+	tags: ["Repositories"],
+	operationId: "listRestoreMachines",
+	responses: {
+		200: {
+			description: "Restore machines",
+			content: {
+				"application/json": {
+					schema: resolver(listRestoreMachinesResponse),
+				},
+			},
+		},
+	},
 });
 
 const restoreSnapshotResponse = z.object({

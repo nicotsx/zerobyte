@@ -125,6 +125,10 @@ This is the safer default when:
 	or linked volume, original-location restore is unavailable. Restore to a custom location instead.
 </Callout>
 
+### Restoring on a remote machine
+
+When remote agents are enabled, the restore form shows a **Machine** selector if the snapshot can be restored on more than one machine. A repository on the Zerobyte server can be restored on the server or on any remote machine that has a backup job using that repository. A repository stored on a remote machine can only be restored on that machine. The form picks the snapshot source's machine by default. See [Remote agents](/docs/guides/remote-agents#restore-on-the-machine) for details.
+
 ## Overwrite modes
 
 Zerobyte exposes Restic's overwrite behavior in the restore form.
