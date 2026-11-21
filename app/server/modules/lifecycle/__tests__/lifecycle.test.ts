@@ -123,3 +123,44 @@ test("a failed volume unmount does not prevent the remaining volumes from unmoun
 	expect(mocks.unmountVolume).toHaveBeenNthCalledWith(1, "first-volume", { persistStatus: false });
 	expect(mocks.unmountVolume).toHaveBeenNthCalledWith(2, "second-volume", { persistStatus: false });
 });
+
+test("concurrent close requests share one application cleanup", async () => {
+	const hook = vi.fn();
+	const { default: bootstrapPlugin } = await import("../../../../nitro/plugins/bootstrap");
+
+	await bootstrapPlugin(fromPartial({ hooks: { hook } }));
+
+	const close = hook.mock.calls.find(([name]) => name === "close")?.[1] as () => Promise<void>;
+
+	await Promise.all([close(), close()]);
+
+	expect(mocks.stopScheduler).toHaveBeenCalledOnce();
+	expect(mocks.stopAgentController).toHaveBeenCalledOnce();
+	expect(mocks.unmountVolume).toHaveBeenCalledOnce();
+});
+
+test("close during startup waits until scheduled work has been activated before stopping it", async () => {
+	const startup = Promise.withResolvers<undefined>();
+	mocks.startLocalAgent.mockReturnValueOnce(startup.promise);
+	const hook = vi.fn();
+	const { default: bootstrapPlugin } = await import("../../../../nitro/plugins/bootstrap");
+	const starting = bootstrapPlugin(fromPartial({ hooks: { hook } }));
+
+	await vi.waitFor(() => expect(mocks.startLocalAgent).toHaveBeenCalledOnce());
+
+	const close = hook.mock.calls.find(([name]) => name === "close")?.[1] as () => Promise<void>;
+	const closing = close();
+
+	try {
+		await Promise.resolve();
+		expect(mocks.stopScheduler).not.toHaveBeenCalled();
+	} finally {
+		startup.resolve(undefined);
+		await starting;
+		await closing;
+	}
+
+	expect(mocks.activateScheduledJobs.mock.invocationCallOrder[0]).toBeLessThan(
+		mocks.stopScheduler.mock.invocationCallOrder[0]!,
+	);
+});
