@@ -4,9 +4,9 @@ import { BadRequestError } from "http-errors-enhanced";
 
 export const assertBackupRepositoryCompatibility = (
 	volume: Pick<Volume, "agentId">,
-	repository: Pick<Repository, "type">,
+	repository: Pick<Repository, "type" | "agentId">,
 ) => {
-	const compatibility = getBackupRepositoryCompatibility(volume, repository.type);
+	const compatibility = getBackupRepositoryCompatibility(volume, repository);
 	if (!compatibility.compatible) {
 		throw new BadRequestError(compatibility.reason);
 	}

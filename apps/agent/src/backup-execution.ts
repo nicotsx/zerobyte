@@ -5,8 +5,13 @@ import type { ResticBackupProgressDto } from "@zerobyte/core/restic";
 import { createRestic, resolveBackupTargets } from "@zerobyte/core/restic/server";
 import { isResticError, ResticError } from "@zerobyte/core/restic";
 import { logger } from "@zerobyte/core/node";
-import { toErrorDetails } from "@zerobyte/core/utils";
-import { normalizeTrustedRelativePath, resolveFilesystemSource } from "./trusted-roots";
+import { isPathWithin, toErrorDetails } from "@zerobyte/core/utils";
+import {
+	normalizeTrustedRelativePath,
+	resolveCanonicalPath,
+	resolveFilesystemSource,
+	resolveRepositoryConfig,
+} from "./trusted-roots";
 import { relativeFilesystemPath } from "./filesystem-paths";
 import type { ControllerCommandContext } from "./context";
 
@@ -26,8 +31,21 @@ export const prepareBackupExecution = (
 ) =>
 	Effect.tryPromise({
 		try: async () => {
+			const repositoryConfig = await resolveRepositoryConfig(context.trustedRoots, payload.repositoryConfig);
+
 			const source = await resolveFilesystemSource(context.trustedRoots, payload.source);
-			const restic = createRestic(context.resticDeps(payload.runtime.password));
+			const repositoryPath =
+				repositoryConfig.backend === "local" ? await resolveCanonicalPath(repositoryConfig.path) : null;
+			const deps = context.resticDeps(payload.runtime.password);
+			// A repository stored inside the source would otherwise be backed up into itself.
+			const restic = createRestic(
+				repositoryPath !== null && isPathWithin(source.canonicalPath, repositoryPath)
+					? {
+							...deps,
+							defaultExcludes: [...deps.defaultExcludes, repositoryPath.replace(/[\\*?[\]]/g, "\\$&")],
+						}
+					: deps,
+			);
 			const options = createBackupOptions(payload, source.canonicalPath, signal);
 
 			return {
@@ -45,7 +63,7 @@ export const prepareBackupExecution = (
 							catch: (error) => error,
 						});
 
-						const result = yield* restic.backup(payload.repositoryConfig, source.canonicalPath, {
+						const result = yield* restic.backup(repositoryConfig, source.canonicalPath, {
 							...options,
 							organizationId: payload.organizationId,
 							includePaths,

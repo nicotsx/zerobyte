@@ -23,11 +23,17 @@ import { RestoreProgress } from "~/client/components/restore-progress";
 import { cancelTaskMutation, restoreSnapshotMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { useRestoreTask } from "~/client/modules/repositories/restore-tasks";
 import { OVERWRITE_MODES, type OverwriteMode } from "@zerobyte/core/restic";
-import type { Repository, Snapshot } from "~/client/lib/types";
+import type { Repository, RestoreMachine, Snapshot, Volume } from "~/client/lib/types";
 import { handleRepositoryError } from "~/client/lib/errors";
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "~/client/lib/utils";
 import { useTimeFormat } from "~/client/lib/datetime";
+import {
+	getDefaultRestoreMachine,
+	getOriginalLocationUnavailableReason,
+	getRestoreMachineName,
+} from "~/client/lib/restore-context";
+import { isAgentRepository } from "@zerobyte/contracts/backup-context";
 
 type RestoreLocation = "original" | "custom";
 
@@ -37,7 +43,10 @@ interface RestoreFormProps {
 	returnPath: string;
 	queryBasePath?: string;
 	displayBasePath?: string;
-	originalLocationUnavailableReason: string | null;
+	/** Volume of the backup job that created the snapshot, when known. */
+	sourceVolume?: Volume;
+	/** Machines the snapshot can be restored on; the first one stores the repository. */
+	restoreMachines: RestoreMachine[];
 }
 
 export function RestoreForm({
@@ -46,13 +55,21 @@ export function RestoreForm({
 	returnPath,
 	queryBasePath,
 	displayBasePath,
-	originalLocationUnavailableReason,
+	sourceVolume,
+	restoreMachines,
 }: RestoreFormProps) {
 	const snapshotId = snapshot.short_id;
 	const navigate = useNavigate();
 	const { formatDateTime } = useTimeFormat();
 
 	const snapshotBasePath = queryBasePath ?? "/";
+
+	const [restoreMachine, setRestoreMachine] = useState(() => getDefaultRestoreMachine(restoreMachines, sourceVolume));
+	const originalLocationUnavailableReason = getOriginalLocationUnavailableReason(
+		snapshot,
+		sourceVolume,
+		restoreMachine,
+	);
 	const restoreRequiresCustomTarget = originalLocationUnavailableReason !== null;
 
 	const [requestedRestoreLocation, setRestoreLocation] = useState<RestoreLocation>(
@@ -71,6 +88,26 @@ export function RestoreForm({
 	const selectedPathCount = selectedPaths.size;
 	const restoreLocation = restoreRequiresCustomTarget ? "custom" : requestedRestoreLocation;
 	const canRestore = restoreLocation === "original" || hasCustomTargetPath;
+
+	const machineName = getRestoreMachineName(restoreMachine);
+	const locationName = machineName ?? "this server";
+	const storedOnAnotherMachine = isAgentRepository(repository);
+	const canDownload = !storedOnAnotherMachine && selectedPathCount <= 1;
+	const downloadBlockedReason = storedOnAnotherMachine
+		? "Snapshot download is not available for repositories stored on another machine."
+		: "Download is available only for one selected item, or with no selection to download everything.";
+
+	const selectRestoreMachine = (agentId: string) => {
+		const machine = restoreMachines.find((candidate) => candidate.agentId === agentId);
+		if (!machine) return;
+
+		setRestoreMachine(machine);
+		// Paths are machine-specific, so a new machine starts from its own default destination.
+		setCustomTargetPath("");
+		setRestoreLocation(
+			getOriginalLocationUnavailableReason(snapshot, sourceVolume, machine) === null ? "original" : "custom",
+		);
+	};
 
 	const {
 		data: restoreStart,
@@ -123,10 +160,13 @@ export function RestoreForm({
 				excludeXattr: excludeXattrValues.length > 0 ? excludeXattrValues : undefined,
 				targetPath,
 				overwrite: overwriteMode,
+				targetAgentId: restoreMachine.agentId === repository.agentId ? undefined : restoreMachine.agentId,
 			},
 		});
 	}, [
 		repository.shortId,
+		repository.agentId,
+		restoreMachine.agentId,
 		snapshotId,
 		excludeXattr,
 		canRestore,
@@ -141,7 +181,7 @@ export function RestoreForm({
 	]);
 
 	const handleDownload = useCallback(() => {
-		if (selectedPaths.size > 1) return;
+		if (!canDownload) return;
 
 		const url = new URL(
 			`/api/v1/repositories/${repository.shortId}/snapshots/${snapshotId}/dump`,
@@ -157,14 +197,13 @@ export function RestoreForm({
 		}
 
 		window.location.assign(url.toString());
-	}, [repository.shortId, snapshotId, selectedPathKind, selectedPaths]);
+	}, [repository.shortId, snapshotId, selectedPathKind, selectedPaths, canDownload]);
 
 	const acknowledgeRestoreResult = useCallback(() => {
 		clearFinishedRestoreTask();
 		resetRestoreMutation();
 	}, [clearFinishedRestoreTask, resetRestoreMutation]);
 
-	const canDownload = selectedPathCount <= 1;
 	const isRestoreRunning = isRestoring || isRestoreTaskRunning;
 	const restoreSucceeded = finishedRestoreTask?.status === "succeeded";
 	const restoreCancelled = finishedRestoreTask?.status === "cancelled";
@@ -210,10 +249,7 @@ export function RestoreForm({
 							</span>
 						</TooltipTrigger>
 						<TooltipContent className={cn({ hidden: canDownload })}>
-							<p>
-								Download is available only for one selected item, or with no selection to download
-								everything.
-							</p>
+							<p>{downloadBlockedReason}</p>
 						</TooltipContent>
 					</Tooltip>
 					<Button
@@ -249,7 +285,7 @@ export function RestoreForm({
 					{restoreRequiresCustomTarget && (
 						<Alert variant="warning">
 							<AlertTriangle className="size-4" />
-							<AlertTitle>Choose a destination on this server</AlertTitle>
+							<AlertTitle>Choose a destination on {locationName}</AlertTitle>
 							<AlertDescription>{originalLocationUnavailableReason}</AlertDescription>
 						</Alert>
 					)}
@@ -258,10 +294,29 @@ export function RestoreForm({
 						<CardHeader>
 							<CardTitle>Restore Location</CardTitle>
 							<CardDescription>
-								Destination: This server. Choose a folder on this server to restore the files.
+								{machineName
+									? `Destination: ${machineName}. Choose a path on ${machineName} to restore the files.`
+									: "Destination: This server. Choose a folder on this server to restore the files."}
 							</CardDescription>
 						</CardHeader>
 						<CardContent className="space-y-4">
+							{restoreMachines.length > 1 && (
+								<div className="space-y-2">
+									<Label htmlFor="restore-machine">Machine</Label>
+									<Select value={restoreMachine.agentId} onValueChange={selectRestoreMachine}>
+										<SelectTrigger id="restore-machine" className="w-full">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent>
+											{restoreMachines.map((machine) => (
+												<SelectItem key={machine.agentId} value={machine.agentId}>
+													{getRestoreMachineName(machine) ?? "This server"}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+								</div>
+							)}
 							<fieldset className="min-w-0 grid grid-cols-1 gap-2" aria-label="Restore destination">
 								<Button
 									type="button"
@@ -281,7 +336,7 @@ export function RestoreForm({
 											className={cn({ hidden: restoreLocation !== "original" })}
 										/>
 										<Circle size={16} className={cn({ hidden: restoreLocation === "original" })} />
-										Original path on this server
+										Original path on {locationName}
 									</span>
 								</Button>
 								<Button
@@ -307,15 +362,27 @@ export function RestoreForm({
 							</fieldset>
 							{restoreLocation === "custom" && (
 								<div className="space-y-2">
-									<FolderSelector value={customTargetPath} onChange={setCustomTargetPath} />
+									{machineName ? (
+										<Input
+											value={customTargetPath}
+											onChange={(e) => setCustomTargetPath(e.target.value)}
+											placeholder="/absolute/path/on/the/machine"
+											aria-label={`Restore path on ${machineName}`}
+											className="font-mono"
+										/>
+									) : (
+										<FolderSelector value={customTargetPath} onChange={setCustomTargetPath} />
+									)}
 									<p className="text-xs text-muted-foreground">
-										Files will be restored directly to this path
+										{machineName
+											? `Files will be restored directly to this path on ${machineName}. The path must be inside one of its trusted roots (ZEROBYTE_AGENT_ROOTS).`
+											: "Files will be restored directly to this path"}
 									</p>
 								</div>
 							)}
 							{restoreLocation === "original" && (
 								<p className="text-xs text-muted-foreground break-words">
-									Restore to the original paths on this server, starting at{" "}
+									Restore to the original paths on {locationName}, starting at{" "}
 									<code>{snapshotBasePath}</code>.
 								</p>
 							)}

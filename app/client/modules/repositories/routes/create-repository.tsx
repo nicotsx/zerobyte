@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
-import { Database, Plus } from "lucide-react";
-import { useId } from "react";
+import { Database, Laptop, Plus, Server } from "lucide-react";
+import { useId, useState } from "react";
 import { toast } from "sonner";
 import { createRepositoryMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import {
@@ -13,10 +13,27 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui
 import { parseError } from "~/client/lib/errors";
 import { Alert, AlertDescription } from "~/client/components/ui/alert";
 import { useNavigate } from "@tanstack/react-router";
+import { usePermissions } from "~/client/hooks/use-permissions";
+import { cn } from "~/client/lib/utils";
+
+const storageHostOptions = [
+	{ value: "server", label: "This server", icon: Server },
+	{ value: "machine", label: "Another machine", icon: Laptop },
+] as const;
+
+// Only local repositories can be stored on another machine.
+const machineRepositoryDefaults = {
+	backend: "local",
+	compressionMode: "auto",
+	path: "",
+	autoCheckEnabled: true,
+} as const;
 
 export function CreateRepositoryPage() {
 	const navigate = useNavigate();
 	const formId = useId();
+	const permissions = usePermissions();
+	const [storedOn, setStoredOn] = useState<"server" | "machine">("server");
 
 	const createRepository = useMutation({
 		...createRepositoryMutation(),
@@ -27,7 +44,7 @@ export function CreateRepositoryPage() {
 	});
 
 	const handleSubmit = (values: RepositoryFormValues) => {
-		const { name, compressionMode, autoCheckEnabled, ...config } = formSchema.parse(values);
+		const { name, compressionMode, autoCheckEnabled, agentId, ...config } = formSchema.parse(values);
 
 		createRepository.mutate({
 			body: {
@@ -35,6 +52,7 @@ export function CreateRepositoryPage() {
 				name,
 				compressionMode,
 				autoCheckEnabled,
+				agentId,
 			},
 		});
 	};
@@ -60,8 +78,38 @@ export function CreateRepositoryPage() {
 							</AlertDescription>
 						</Alert>
 					)}
+					{permissions.hasRuntimeFeature("remoteAgents") && (
+						<fieldset className="space-y-2">
+							<legend className="text-sm font-medium">Repository is stored on</legend>
+							<div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+								{storageHostOptions.map((option) => (
+									<label
+										key={option.value}
+										className={cn(
+											"flex min-h-11 cursor-pointer items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors",
+											storedOn === option.value && "border-primary bg-primary/5",
+										)}
+									>
+										<input
+											type="radio"
+											name="repository-host"
+											value={option.value}
+											checked={storedOn === option.value}
+											onChange={() => setStoredOn(option.value)}
+											className="size-4 accent-primary"
+										/>
+										<option.icon className="size-4 text-muted-foreground" aria-hidden="true" />
+										{option.label}
+									</label>
+								))}
+							</div>
+						</fieldset>
+					)}
 					<CreateRepositoryForm
+						key={storedOn}
 						mode="create"
+						storedOn={storedOn}
+						initialValues={storedOn === "machine" ? machineRepositoryDefaults : undefined}
 						formId={formId}
 						onSubmit={handleSubmit}
 						loading={createRepository.isPending}
