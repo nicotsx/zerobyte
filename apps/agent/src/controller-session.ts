@@ -19,6 +19,8 @@ import type { ControllerCommandContext, RunningJob } from "./context";
 import { getTrustedRootDescriptors, type TrustedRootRegistry } from "./trusted-roots";
 import { resticDeps } from "./restic/deps";
 
+export const CONTROLLER_SILENCE_TIMEOUT_MS = 90_000;
+
 export type ControllerSession = {
 	onOpen: () => void;
 	onMessage: (data: unknown) => void;
@@ -35,6 +37,7 @@ export const createControllerSession = (
 	},
 ): ControllerSession => {
 	let isClosed = false;
+	let silence: { deadline: number; graceGranted: boolean } | undefined;
 
 	const outboundQueue = Effect.runSync(Queue.bounded<{ message: AgentMessage; wire: string }>(64));
 	const inboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));
@@ -56,22 +59,49 @@ export const createControllerSession = (
 		activeJobs: Effect.runSync(Ref.get(runningJobsRef)).size,
 	}));
 
+	const renewSilenceDeadline = () => {
+		silence = { deadline: performance.now() + CONTROLLER_SILENCE_TIMEOUT_MS, graceGranted: false };
+	};
+
+	const terminateTransport = () => {
+		try {
+			ws.terminate();
+		} catch (error) {
+			logger.error(`Failed to terminate controller WebSocket: ${toMessage(error)}`);
+		}
+	};
+
 	const diagnosticFiber = Effect.runFork(
 		Effect.forever(
 			Effect.gen(function* () {
 				yield* Effect.sleep(CONNECTION_DIAGNOSTIC_INTERVAL_MS);
 
 				const timer = diagnostics.checkTimer();
+				const missedTick = timer.timerDelayMs >= CONNECTION_DIAGNOSTIC_INTERVAL_MS;
 
-				if (
-					timer.timerDelayMs >= CONNECTION_DIAGNOSTIC_INTERVAL_MS ||
-					Math.abs(timer.clockDriftMs) >= CONNECTION_DIAGNOSTIC_INTERVAL_MS
-				) {
+				if (missedTick || Math.abs(timer.clockDriftMs) >= CONNECTION_DIAGNOSTIC_INTERVAL_MS) {
 					logger.warn(
 						"Agent session timer delayed or clock changed",
 						JSON.stringify({ ...diagnostics.snapshot(), ...timer }),
 					);
 				}
+
+				if (isClosed || silence === undefined) return;
+
+				const now = performance.now();
+				if (now < silence.deadline) return;
+
+				// A delayed timer can run before the socket delivers heartbeats that are already waiting.
+				if (missedTick && !silence.graceGranted) {
+					silence = { deadline: now + CONNECTION_DIAGNOSTIC_INTERVAL_MS, graceGranted: true };
+					return;
+				}
+
+				logger.warn(
+					"Controller stopped sending messages, dropping the connection to reconnect",
+					JSON.stringify(diagnostics.snapshot()),
+				);
+				terminateTransport();
 			}),
 		),
 	);
@@ -151,12 +181,7 @@ export const createControllerSession = (
 	const handleSendFailure = (reason: string) => {
 		logger.error(`Closing agent session after an outbound websocket send failed: ${reason}`);
 
-		try {
-			ws.close();
-		} catch (error) {
-			logger.error(`Failed to close controller websocket after send failure: ${toMessage(error)}`);
-		}
-
+		terminateTransport();
 		closeSession();
 	};
 
@@ -223,6 +248,8 @@ export const createControllerSession = (
 
 	return {
 		onOpen: () => {
+			renewSilenceDeadline();
+
 			void Effect.runPromise(
 				offerOutbound({
 					type: "agent.ready",
@@ -244,6 +271,7 @@ export const createControllerSession = (
 				return;
 			}
 
+			renewSilenceDeadline();
 			diagnostics.onReceived();
 
 			void Effect.runPromise(offerInbound(data as ControllerWireMessage)).catch((error) => {
