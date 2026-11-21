@@ -52,7 +52,7 @@ export const forget = (
 				args.push("--keep-yearly", String(options.keepYearly));
 			}
 			if (options.keepWithinDuration) {
-				args.push("--keep-within-duration", options.keepWithinDuration);
+				args.push("--keep-within", options.keepWithinDuration);
 			}
 			if (!extra.dryRun) {
 				args.push("--prune");
