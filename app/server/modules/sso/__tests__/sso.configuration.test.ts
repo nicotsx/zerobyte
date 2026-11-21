@@ -80,6 +80,33 @@ async function setup(linked = false) {
 	return { ...session, providerId, url, patch };
 }
 
+test("requires organization admins to edit SSO providers through API v1", async () => {
+	const provider = await setup(true);
+	await db.update(member).set({ role: "admin" }).where(eq(member.userId, provider.user.id));
+	const where = { providerId: provider.providerId };
+	const original = await db.query.ssoProvider.findFirst({ where });
+	const domain = "updated.example.com";
+
+	for (const path of [
+		"/sso/update-provider",
+		"/sso/update-provider/",
+		"/sso/%75pdate-provider",
+		"/sso//update-provider",
+	]) {
+		const response = await app.request(`/api/auth${path}`, {
+			method: "POST",
+			headers: { ...provider.headers, "Content-Type": "application/json" },
+			body: JSON.stringify({ providerId: provider.providerId, domain }),
+		});
+		expect(response.status).toBe(404);
+	}
+	expect(await db.query.ssoProvider.findFirst({ where })).toEqual(original);
+
+	const response = await provider.patch({ domain });
+	expect(response.status).toBe(200);
+	expect(await db.query.ssoProvider.findFirst({ where })).toMatchObject({ domain });
+});
+
 test("loads saved settings without discovery or returning credentials", async () => {
 	const provider = await setup(true);
 	const discoveryRequest = vi.fn(() => HttpResponse.error());

@@ -32,6 +32,7 @@ export const auth = betterAuth({
 	secret: await cryptoUtils.deriveSecret("better-auth"),
 	baseURL: authBaseURL,
 	trustedOrigins: config.trustedOrigins,
+	disabledPaths: ["/sso/update-provider"],
 	rateLimit: {
 		enabled: !config.flags.disableRateLimiting,
 	},

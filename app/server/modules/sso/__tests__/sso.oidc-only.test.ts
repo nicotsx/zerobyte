@@ -60,21 +60,19 @@ test("blocks stored SAML metadata, provider mutations and sign-in", async () => 
 	const metadata = await app.request(`/api/auth/sso/saml2/sp/metadata?providerId=${providerId}`);
 	expect(metadata.status).toBe(404);
 
-	for (const path of ["/sso/register", "/sso/update-provider"]) {
-		const response = await app.request(`/api/auth${path}`, {
-			method: "POST",
-			headers: { ...session.headers, "Content-Type": "application/json" },
-			body: JSON.stringify({
-				providerId,
-				issuer: original?.issuer,
-				domain: "example.test",
-				organizationId: session.organizationId,
-				samlConfig: original?.samlConfig,
-			}),
-		});
-		expect(response.status).toBe(400);
-		expect(await response.text()).toContain("Only OIDC");
-	}
+	const registration = await app.request("/api/auth/sso/register", {
+		method: "POST",
+		headers: { ...session.headers, "Content-Type": "application/json" },
+		body: JSON.stringify({
+			providerId,
+			issuer: original?.issuer,
+			domain: "example.test",
+			organizationId: session.organizationId,
+			samlConfig: original?.samlConfig,
+		}),
+	});
+	expect(registration.status).toBe(400);
+	expect(await registration.text()).toContain("Only OIDC");
 	expect(await db.query.ssoProvider.findFirst({ where: { providerId } })).toEqual(original);
 	for (const providerType of [undefined, "saml", "oidc"]) {
 		const login = await app.request("/api/auth/sign-in/sso", {
@@ -90,7 +88,7 @@ test("blocks stored SAML metadata, provider mutations and sign-in", async () => 
 	}
 });
 
-test("preserves OIDC registration, update and sign-in", async () => {
+test("preserves OIDC registration, API v1 updates and sign-in", async () => {
 	const session = await createTestSession();
 	const providerId = `oidc-${Bun.randomUUIDv7()}`;
 	const headers = { ...session.headers, "Content-Type": "application/json" };
@@ -113,12 +111,13 @@ test("preserves OIDC registration, update and sign-in", async () => {
 		}),
 	});
 	expect(registered.status).toBe(200);
-	const updated = await app.request("/api/auth/sso/update-provider", {
-		method: "POST",
+	const updated = await app.request(`/api/v1/auth/sso-providers/${providerId}`, {
+		method: "PATCH",
 		headers,
-		body: JSON.stringify({ providerId, domain: "updated.example.com" }),
+		body: JSON.stringify({ domain: "updated.example.com" }),
 	});
 	expect(updated.status).toBe(200);
+
 	const login = await app.request("/api/auth/sign-in/sso", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
