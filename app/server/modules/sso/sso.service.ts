@@ -62,13 +62,10 @@ class SsoService {
 		return { providers };
 	}
 
-	/**
-	 * Get an SSO provider by provider id
-	 */
 	async getSsoProviderById(providerId: string) {
 		return db.query.ssoProvider.findFirst({
 			where: { providerId },
-			columns: { id: true, providerId: true, organizationId: true, autoLinkMatchingEmails: true },
+			columns: { id: true, providerId: true, organizationId: true },
 		});
 	}
 
@@ -148,23 +145,28 @@ class SsoService {
 		});
 	}
 
+	async listAccountLinkProviders(userId: string, organizationId: string) {
+		const [providers, accounts] = await Promise.all([
+			db.query.ssoProvider.findMany({
+				where: { AND: [{ organizationId }, { oidcConfig: { isNotNull: true } }] },
+				columns: { providerId: true, issuer: true },
+				orderBy: { providerId: "asc" },
+			}),
+			db.query.account.findMany({ where: { userId }, columns: { providerId: true } }),
+		]);
+
+		const linkedProviderIds = new Set(accounts.map((entry) => entry.providerId));
+		return providers.map((provider) => ({
+			...provider,
+			linked: linkedProviderIds.has(provider.providerId),
+		}));
+	}
+
 	async getSsoProviderForOrganization(providerId: string, organizationId: string) {
 		return db.query.ssoProvider.findFirst({
 			where: { AND: [{ providerId }, { organizationId }] },
 			columns: { providerId: true, organizationId: true },
 		});
-	}
-
-	/**
-	 * Get trusted provider ids for organization auto-linking
-	 */
-	async getAutoLinkingSsoProviderIds(organizationId: string) {
-		const providers = await db.query.ssoProvider.findMany({
-			columns: { providerId: true },
-			where: { organizationId, autoLinkMatchingEmails: true },
-		});
-
-		return providers.map((provider) => provider.providerId);
 	}
 
 	getInvitationIntentTokenFromRequest(request?: Request | null) {
@@ -252,31 +254,6 @@ class SsoService {
 
 			return true;
 		});
-	}
-
-	/**
-	 * Get per-provider auto-linking setting for an organization
-	 */
-	async getSsoProviderAutoLinkingSettings(organizationId: string) {
-		const providers = await db.query.ssoProvider.findMany({
-			columns: { providerId: true, autoLinkMatchingEmails: true },
-			where: { organizationId },
-		});
-
-		return Object.fromEntries(providers.map((provider) => [provider.providerId, provider.autoLinkMatchingEmails]));
-	}
-
-	/**
-	 * Update per-provider auto-linking setting
-	 */
-	async updateSsoProviderAutoLinking(providerId: string, organizationId: string, enabled: boolean) {
-		const result = await db
-			.update(ssoProvider)
-			.set({ autoLinkMatchingEmails: enabled })
-			.where(and(eq(ssoProvider.providerId, providerId), eq(ssoProvider.organizationId, organizationId)))
-			.returning();
-
-		return result.length > 0;
 	}
 
 	/**

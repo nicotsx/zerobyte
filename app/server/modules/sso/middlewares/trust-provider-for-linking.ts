@@ -16,7 +16,6 @@ export async function resolveTrustedProvidersForRequest(request?: Request): Prom
 		return [];
 	}
 
-	const trustedProviders = await ssoService.getAutoLinkingSsoProviderIds(provider.organizationId);
 	const invitationIntent = await ssoService.getValidInvitationSsoIntent(
 		ssoService.getInvitationIntentTokenFromRequest(request),
 	);
@@ -25,8 +24,8 @@ export async function resolveTrustedProvidersForRequest(request?: Request): Prom
 		invitationIntent?.providerId === provider.providerId &&
 		invitationIntent.organizationId === provider.organizationId
 	) {
-		return [...new Set([...trustedProviders, provider.providerId])];
+		return [provider.providerId];
 	}
 
-	return trustedProviders;
+	return [];
 }

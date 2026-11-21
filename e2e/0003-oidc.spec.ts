@@ -14,24 +14,24 @@ const setupAuthFile = path.join(process.cwd(), "playwright", ".auth", "user.json
 const providerIds = {
 	uninvited: "test-oidc-uninvited",
 	invited: "test-oidc-invited",
-	autoLinkNoInvite: "test-oidc-register",
-	autoLink: "test-oidc-autolink",
+	existingWithoutInvite: "test-oidc-register",
+	invitedExisting: "test-oidc-invite-existing",
 	existingMember: "test-oidc-existing-member",
 } as const;
 
 const tinyauthPassword = "password";
 const uninvitedUserEmail = "admin@example.com";
 const invitedUserEmail = "user@example.com";
-const autoLinkUninvitedLocalEmail = "linkguard@example.com";
-const autoLinkTargetEmail = "test@example.com";
-const autoLinkTargetUsername = "sso-link-target";
-const autoLinkUninvitedLocalUsername = "sso-link-guard";
+const uninvitedLocalEmail = "linkguard@example.com";
+const invitedLocalEmail = "test@example.com";
+const invitedLocalUsername = "sso-link-target";
+const uninvitedLocalUsername = "sso-link-guard";
 const existingMemberLocalEmail = "memberlink@example.com";
 const existingMemberLocalUsername = "sso-existing-member";
 const inviteOnlyMessage =
 	"Access is invite-only. Ask an organization admin to send you an invitation before signing in with SSO.";
 const accountLinkRequiredMessage =
-	"SSO sign-in was blocked because this email already belongs to another user in this instance. Contact your administrator to resolve the account conflict. If you have an invitation to this organization, verify it from your account page before signing in with SSO.";
+	"SSO sign-in was blocked because this email already belongs to another user in this instance. Sign in with your current method and link SSO in personal settings, or verify your pending invitation there.";
 
 type OrgMembersResponse = {
 	members: {
@@ -61,11 +61,6 @@ type SsoSignInResponse = {
 };
 
 type OidcUiState = "app" | "authorize" | "loading" | "login";
-
-async function openSsoSettings(page: Page) {
-	await gotoAndWaitForAppReady(page, "/settings?tab=organization");
-	await expect(page.getByText("Single Sign-On")).toBeVisible();
-}
 
 async function registerOidcProvider(page: Page, providerId: string) {
 	await gotoAndWaitForAppReady(page, "/settings/sso/new");
@@ -260,25 +255,6 @@ async function verifyInvitationAsLocalUserWithSso(
 	}
 }
 
-async function setProviderAutoLinking(page: Page, providerId: string, enabled: boolean) {
-	await openSsoSettings(page);
-	const providerRow = page
-		.getByRole("row")
-		.filter({ has: page.getByRole("cell", { name: providerId, exact: true }) })
-		.first();
-	const autoLinkSwitch = providerRow.getByRole("switch");
-	const expectedState = enabled ? "true" : "false";
-	const currentState = await autoLinkSwitch.getAttribute("aria-checked");
-	const expectedToast = enabled ? "Automatic account linking enabled" : "Automatic account linking disabled";
-
-	if (currentState !== expectedState) {
-		await autoLinkSwitch.click();
-		await expect(page.getByText(expectedToast)).toBeVisible();
-	}
-
-	await expect(autoLinkSwitch).toHaveAttribute("aria-checked", expectedState);
-}
-
 async function startSsoLogin(page: Page, providerId: string) {
 	const response = await page.request.post("/api/auth/sign-in/sso", {
 		headers: {
@@ -450,44 +426,36 @@ test("invited OIDC users can sign in, retain access, and are blocked after remov
 	});
 });
 
-test("auto-link policy requires local acceptance for existing credential accounts", async ({ page, browser }) => {
-	await registerOidcProvider(page, providerIds.autoLinkNoInvite);
-	await createLocalUser(browser, autoLinkUninvitedLocalEmail, autoLinkUninvitedLocalUsername);
-	await setProviderAutoLinking(page, providerIds.autoLinkNoInvite, true);
+test("an existing account needs confirmation before linking an invited provider", async ({ page, browser }) => {
+	await registerOidcProvider(page, providerIds.existingWithoutInvite);
+	await createLocalUser(browser, uninvitedLocalEmail, uninvitedLocalUsername);
 
-	await withOidcLoginAttempt(browser, providerIds.autoLinkNoInvite, autoLinkUninvitedLocalEmail, async (ssoPage) => {
+	await withOidcLoginAttempt(browser, providerIds.existingWithoutInvite, uninvitedLocalEmail, async (ssoPage) => {
 		await expectAccountLinkRequiredLoginError(ssoPage);
 	});
 
-	await registerOidcProvider(page, providerIds.autoLink);
-	await createLocalUser(browser, autoLinkTargetEmail, autoLinkTargetUsername);
-	await createPendingInvitation(page, autoLinkTargetEmail);
-	await setProviderAutoLinking(page, providerIds.autoLink, false);
+	await registerOidcProvider(page, providerIds.invitedExisting);
+	await createLocalUser(browser, invitedLocalEmail, invitedLocalUsername);
+	await createPendingInvitation(page, invitedLocalEmail);
 
-	await withOidcLoginAttempt(browser, providerIds.autoLink, autoLinkTargetEmail, async (ssoPage) => {
-		await expectAccountLinkRequiredLoginError(ssoPage);
-	});
-
-	await setProviderAutoLinking(page, providerIds.autoLink, true);
-
-	await withOidcLoginAttempt(browser, providerIds.autoLink, autoLinkTargetEmail, async (ssoPage) => {
+	await withOidcLoginAttempt(browser, providerIds.invitedExisting, invitedLocalEmail, async (ssoPage) => {
 		await expectAccountLinkRequiredLoginError(ssoPage);
 	});
 
 	await expect
 		.poll(async () => {
-			return getInvitationStatusByEmail(page, autoLinkTargetEmail);
+			return getInvitationStatusByEmail(page, invitedLocalEmail);
 		})
 		.toBe("pending");
 
 	await expect
 		.poll(async () => {
-			return getOrgMemberIdByEmail(page, autoLinkTargetEmail);
+			return getOrgMemberIdByEmail(page, invitedLocalEmail);
 		})
 		.toBeNull();
 });
 
-test("existing local org members can link via SSO without a pending invitation", async ({ page, browser }) => {
+test("an account linked during invitation verification can sign in again", async ({ page, browser }) => {
 	await registerOidcProvider(page, providerIds.existingMember);
 	await createLocalUser(browser, existingMemberLocalEmail, existingMemberLocalUsername);
 	await createPendingInvitation(page, existingMemberLocalEmail);
@@ -516,8 +484,6 @@ test("existing local org members can link via SSO without a pending invitation",
 			return getOrgMemberIdByEmail(page, existingMemberLocalEmail);
 		})
 		.not.toBeNull();
-
-	await setProviderAutoLinking(page, providerIds.existingMember, true);
 
 	await withOidcLoginAttempt(browser, providerIds.existingMember, existingMemberLocalEmail, async (ssoPage) => {
 		await ssoPage.waitForURL(/\/volumes/, { timeout: 30000 });

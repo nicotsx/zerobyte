@@ -44,6 +44,8 @@ describe("auth controller security", () => {
 
 	describe("authenticated user endpoints - require requireAuth", () => {
 		const authenticatedUserEndpoints = [
+			{ method: "GET", path: "/api/v1/auth/sso-account-links" },
+			{ method: "POST", path: "/api/v1/auth/sso-account-links" },
 			{ method: "GET", path: "/api/v1/auth/sso-invitations" },
 			{ method: "POST", path: "/api/v1/auth/sso-invitations/test-invitation/verify" },
 		];
@@ -74,7 +76,6 @@ describe("auth controller security", () => {
 		const orgAdminEndpoints = [
 			{ method: "GET", path: "/api/v1/auth/sso-settings" },
 			{ method: "DELETE", path: "/api/v1/auth/sso-providers/test-provider" },
-			{ method: "PATCH", path: "/api/v1/auth/sso-providers/test-provider/auto-linking" },
 			{ method: "DELETE", path: "/api/v1/auth/sso-invitations/test-invitation" },
 			{ method: "GET", path: "/api/v1/auth/org-members" },
 			{ method: "PATCH", path: "/api/v1/auth/org-members/test-member/role" },
@@ -111,20 +112,6 @@ describe("auth controller security", () => {
 				expect(res.status).not.toBe(403);
 			});
 		}
-
-		describe("PATCH /api/v1/auth/sso-providers/:providerId/auto-linking specific", () => {
-			test("should return 400 for invalid payload", async () => {
-				const res = await app.request("/api/v1/auth/sso-providers/test-provider/auto-linking", {
-					method: "PATCH",
-					headers: {
-						...orgAdminSession.headers,
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({}),
-				});
-				expect(res.status).toBe(400);
-			});
-		});
 
 		describe("PATCH /api/v1/auth/org-members/:memberId/role specific", () => {
 			test("should return 400 for invalid payload", async () => {

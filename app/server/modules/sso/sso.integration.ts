@@ -1,11 +1,17 @@
 import { sso } from "@better-auth/sso";
 import { eq } from "drizzle-orm";
 import { APIError } from "better-auth";
-import type { GenericEndpointContext, User } from "better-auth";
+import type { Account, GenericEndpointContext, User } from "better-auth";
 import { db } from "~/server/db/db";
 import { invitation, member } from "~/server/db/schema";
 import { authService } from "../auth/auth.service";
 import { ssoService } from "./sso.service";
+import {
+	accountLinkRequired,
+	attachSsoAccountLink,
+	completeSsoAccountLink,
+	getSsoAccountLink,
+} from "./sso-account-link";
 import { validateSsoRegistrationIssuer } from "./middlewares/validate-registration-issuer";
 import { validateSsoProviderId } from "./middlewares/validate-provider-id";
 import { validateSsoCallbackUrls } from "./middlewares/validate-callback-urls";
@@ -16,6 +22,8 @@ import { resolveTrustedProvidersForRequest } from "./middlewares/trust-provider-
 import { isSsoCallbackRequest, extractProviderIdFromContext, normalizeEmail } from "./utils/sso-context";
 import { findMembershipWithOrganization } from "~/server/lib/auth/helpers/create-default-org";
 import { logger } from "@zerobyte/core/node";
+
+const invitedSsoSignups = new WeakSet<Request>();
 
 type AcceptInvitationHookData = {
 	invitation: {
@@ -88,11 +96,34 @@ async function resolveOrgMembership(userId: string, ctx: GenericEndpointContext 
 	return invitedMembership;
 }
 
+async function requireSsoSignIn() {
+	if (await getSsoAccountLink()) throw accountLinkRequired();
+}
+
+async function rejectAccountLinkWrite(_data: object, ctx: GenericEndpointContext | null) {
+	if (isSsoCallbackRequest(ctx)) await requireSsoSignIn();
+}
+
+async function onAccountCreate(binding: Omit<Account, "id">, ctx: GenericEndpointContext | null) {
+	if (!ctx || !isSsoCallbackRequest(ctx)) return;
+
+	const link = await getSsoAccountLink();
+	if (link) return completeSsoAccountLink(ctx, link, binding);
+
+	const allowed = await canLinkSsoAccount(binding.userId, binding.providerId, ctx);
+	if (!allowed) throw accountLinkRequired();
+}
+
 async function onUserCreate(
 	user: User & { hasDownloadedResticPassword?: boolean },
 	ctx: GenericEndpointContext | null,
 ) {
+	if (!isSsoCallbackRequest(ctx)) return;
+
+	await requireSsoSignIn();
 	await requireSsoInvitation(user.email, ctx);
+	if (ctx?.request) invitedSsoSignups.add(ctx.request);
+
 	user.hasDownloadedResticPassword = true;
 }
 
@@ -106,10 +137,12 @@ async function canLinkSsoAccount(
 		return false;
 	}
 
-	const existingMembership = await findMembershipWithOrganization(userId, ssoProviderRecord.organizationId);
-	if (existingMembership) {
-		return ssoProviderRecord.autoLinkMatchingEmails;
+	if (ctx?.request && extractProviderIdFromContext(ctx) === providerId && invitedSsoSignups.delete(ctx.request)) {
+		return true;
 	}
+
+	const existingMembership = await findMembershipWithOrganization(userId, ssoProviderRecord.organizationId);
+	if (existingMembership) return false;
 
 	const user = await db.query.usersTable.findFirst({ where: { id: userId } });
 	if (!user) {
@@ -123,15 +156,6 @@ async function canLinkSsoAccount(
 
 	if (!pendingInvitation) {
 		return false;
-	}
-
-	const existingAccount = await db.query.account.findFirst({
-		where: { userId },
-		columns: { id: true },
-	});
-
-	if (!existingAccount) {
-		return true;
 	}
 
 	const invitationIntent = await ssoService.getValidInvitationSsoIntent(
@@ -159,7 +183,14 @@ async function resolveOrgMembershipOrThrow(userId: string, ctx: GenericEndpointC
 }
 
 async function onUserCreated(user: User, ctx: GenericEndpointContext | null) {
-	await resolveOrgMembershipOrThrow(user.id, ctx);
+	if (isSsoCallbackRequest(ctx)) await resolveOrgMembershipOrThrow(user.id, ctx);
+}
+
+async function resolveSessionMembership(userId: string, ctx: GenericEndpointContext | null) {
+	if (!isSsoCallbackRequest(ctx)) return null;
+
+	await requireSsoSignIn();
+	return resolveOrgMembershipOrThrow(userId, ctx);
 }
 
 async function beforeAcceptInvitation({ invitation }: AcceptInvitationHookData) {
@@ -175,10 +206,6 @@ async function beforeAcceptInvitation({ invitation }: AcceptInvitationHookData) 
 
 export const ssoIntegration = {
 	plugin: sso({
-		// Better Auth's SSO callback only reaches our account-linking hook when the
-		// provider email is trusted. The hook below still enforces explicit invitation
-		// intent or the organization's per-provider auto-linking policy before any
-		// existing account can be linked.
 		trustEmailVerified: true,
 		providersLimit: async (user: User) => {
 			const isOrgAdmin = await authService.isOrgAdminAnywhere(user.id);
@@ -196,9 +223,12 @@ export const ssoIntegration = {
 		validateSsoCallbackUrls,
 		authorizeSsoRegistration,
 		validateSsoRegistrationIssuer,
+		attachSsoAccountLink,
 	] as const,
 
-	isSsoCallback: isSsoCallbackRequest,
+	onAccountCreate,
+
+	rejectAccountLinkWrite,
 
 	onUserCreate,
 
@@ -206,7 +236,7 @@ export const ssoIntegration = {
 
 	beforeAcceptInvitation,
 
-	resolveOrgMembershipOrThrow,
+	resolveSessionMembership,
 
 	resolveOrgMembership,
 

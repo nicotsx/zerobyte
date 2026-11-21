@@ -14,11 +14,13 @@ import {
 	getPublicSsoProvidersDto,
 	getSsoSettingsDto,
 	getUserSsoInvitationsDto,
+	getSsoAccountLinkProvidersDto,
+	startSsoAccountLinkBody,
+	startSsoAccountLinkDto,
 	startInvitationSsoVerificationBody,
 	startInvitationSsoVerificationDto,
-	updateSsoProviderAutoLinkingBody,
-	updateSsoProviderAutoLinkingDto,
 } from "./sso.dto";
+import { SSO_ACCOUNT_LINK_RETURN_PATH, startSsoAccountLink } from "./sso-account-link";
 import { SSO_INVITATION_INTENT_COOKIE, ssoService } from "./sso.service";
 import { requireAuth, requireBrowserSession, requirePermission, requireRuntimeFeature } from "../auth/auth.middleware";
 import { auth } from "~/server/lib/auth";
@@ -45,10 +47,9 @@ export const ssoController = new Hono()
 			return c.json<SsoSettingsDto>({ providers: [], invitations: [] });
 		}
 
-		const [providersData, invitationsData, autoLinkingSettings] = await Promise.all([
+		const [providersData, invitationsData] = await Promise.all([
 			auth.api.listSSOProviders({ headers, query: { organizationId: activeOrganizationId } }),
 			auth.api.listInvitations({ headers, query: { organizationId: activeOrganizationId } }),
-			ssoService.getSsoProviderAutoLinkingSettings(activeOrganizationId),
 		]);
 
 		return c.json<SsoSettingsDto>({
@@ -58,7 +59,6 @@ export const ssoController = new Hono()
 					type: provider.type,
 					issuer: provider.issuer,
 					domain: provider.domain,
-					autoLinkMatchingEmails: autoLinkingSettings[provider.providerId] ?? false,
 					organizationId: provider.organizationId,
 				}))
 				.filter((p) => p.organizationId === activeOrganizationId),
@@ -71,6 +71,56 @@ export const ssoController = new Hono()
 			})),
 		});
 	})
+	.get(
+		"/sso-account-links",
+		requireAuth,
+		requireRuntimeFeature("ssoManagement"),
+		requireBrowserSession,
+		getSsoAccountLinkProvidersDto,
+		async (c) => {
+			const providers = await ssoService.listAccountLinkProviders(c.get("user").id, c.get("organizationId"));
+
+			return c.json(providers);
+		},
+	)
+	.post(
+		"/sso-account-links",
+		requireAuth,
+		requireRuntimeFeature("ssoManagement"),
+		requireBrowserSession,
+		startSsoAccountLinkDto,
+		validator("json", startSsoAccountLinkBody),
+		async (c) => {
+			const headers = c.req.raw.headers;
+			const session = await auth.api.getSession({ headers, query: { disableCookieCache: true } });
+			if (!session || session.session.impersonatedBy || session.user.id !== c.get("user").id) {
+				return c.json({ message: "Sign in to your account to link SSO" }, 401);
+			}
+
+			const organizationId = c.get("organizationId");
+			const { providerId } = c.req.valid("json");
+
+			const email = normalizeEmail(session.user.email);
+			const response = await startSsoAccountLink(
+				{ userId: session.user.id, sessionId: session.session.id, email, organizationId, providerId },
+				() =>
+					auth.api.signInSSO({
+						headers,
+						asResponse: true,
+						body: {
+							providerId,
+							providerType: "oidc",
+							loginHint: email,
+							callbackURL: SSO_ACCOUNT_LINK_RETURN_PATH,
+							errorCallbackURL: `${SSO_ACCOUNT_LINK_RETURN_PATH}&ssoLink=failed`,
+						},
+					}),
+			);
+
+			return response ?? c.json({ message: "This SSO provider is unavailable or already linked" }, 400);
+		},
+	)
+
 	.get(
 		"/sso-invitations",
 		requireAuth,
@@ -173,26 +223,6 @@ export const ssoController = new Hono()
 			const deleted = await ssoService.deleteSsoProvider(providerId, organizationId);
 
 			if (!deleted) {
-				return c.json({ message: "Provider not found" }, 404);
-			}
-
-			return c.json({ success: true });
-		},
-	)
-	.patch(
-		"/sso-providers/:providerId/auto-linking",
-		requireAuth,
-		requirePermission("sso.manage"),
-		updateSsoProviderAutoLinkingDto,
-		validator("json", updateSsoProviderAutoLinkingBody),
-		async (c) => {
-			const providerId = c.req.param("providerId");
-			const organizationId = c.get("organizationId");
-			const { enabled } = c.req.valid("json");
-
-			const updated = await ssoService.updateSsoProviderAutoLinking(providerId, organizationId, enabled);
-
-			if (!updated) {
 				return c.json({ message: "Provider not found" }, 404);
 			}
 

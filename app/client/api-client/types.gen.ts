@@ -339,8 +339,7 @@ export type GetSsoSettingsResponses = {
             type: string;
             issuer: string;
             domain: string;
-            autoLinkMatchingEmails: boolean;
-            organizationId: string | null;
+                organizationId: string | null;
         }>;
         invitations: Array<{
             id: string;
@@ -353,6 +352,57 @@ export type GetSsoSettingsResponses = {
 };
 
 export type GetSsoSettingsResponse = GetSsoSettingsResponses[keyof GetSsoSettingsResponses];
+
+export type GetSsoAccountLinkProvidersData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/sso-account-links';
+};
+
+export type GetSsoAccountLinkProvidersResponses = {
+    /**
+     * Account linking providers
+     */
+    200: Array<{
+        providerId: string;
+        issuer: string;
+        linked: boolean;
+    }>;
+};
+
+export type GetSsoAccountLinkProvidersResponse = GetSsoAccountLinkProvidersResponses[keyof GetSsoAccountLinkProvidersResponses];
+
+export type StartSsoAccountLinkData = {
+    body: {
+        providerId: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/sso-account-links';
+};
+
+export type StartSsoAccountLinkErrors = {
+    /**
+     * The provider is unavailable or already linked
+     */
+    400: unknown;
+    /**
+     * Browser session required
+     */
+    401: unknown;
+};
+
+export type StartSsoAccountLinkResponses = {
+    /**
+     * Identity provider authorization URL
+     */
+    200: {
+        url: string;
+    };
+};
+
+export type StartSsoAccountLinkResponse = StartSsoAccountLinkResponses[keyof StartSsoAccountLinkResponses];
 
 export type GetUserSsoInvitationsData = {
     body?: never;
@@ -527,45 +577,6 @@ export type CheckSsoProviderDiscoveryResponses = {
 };
 
 export type CheckSsoProviderDiscoveryResponse = CheckSsoProviderDiscoveryResponses[keyof CheckSsoProviderDiscoveryResponses];
-
-export type UpdateSsoProviderAutoLinkingData = {
-    body: {
-        enabled: boolean;
-    };
-    path: {
-        providerId: string;
-    };
-    query?: never;
-    url: '/api/v1/auth/sso-providers/{providerId}/auto-linking';
-};
-
-export type UpdateSsoProviderAutoLinkingErrors = {
-    /**
-     * Validation Error
-     */
-    400: {
-        success: false;
-        error: Array<unknown>;
-        data: unknown;
-    };
-    /**
-     * Forbidden
-     */
-    403: unknown;
-    /**
-     * Provider not found
-     */
-    404: unknown;
-};
-
-export type UpdateSsoProviderAutoLinkingError = UpdateSsoProviderAutoLinkingErrors[keyof UpdateSsoProviderAutoLinkingErrors];
-
-export type UpdateSsoProviderAutoLinkingResponses = {
-    /**
-     * SSO provider auto-linking setting updated successfully
-     */
-    200: unknown;
-};
 
 export type DeleteSsoInvitationData = {
     body?: never;

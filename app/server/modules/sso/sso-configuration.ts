@@ -77,6 +77,26 @@ function findProvider(providerId: string, organizationId: string, query = db.que
 	return { ...provider, oidcConfig: editableOidcConfigSchema.parse(provider.oidcConfig) };
 }
 
+export function getSsoProviderIdentity(providerId: string, organizationId: string, query = db.query) {
+	const provider = query.ssoProvider
+		.findFirst({
+			where: { providerId, organizationId, oidcConfig: { isNotNull: true } },
+			columns: { id: true, issuer: true, oidcConfig: true },
+		})
+		.sync();
+	if (!provider) return null;
+
+	const oidc = editableOidcConfigSchema.safeParse(provider.oidcConfig);
+	if (!oidc.success) return null;
+
+	return {
+		id: provider.id,
+		issuer: provider.issuer,
+		clientId: oidc.data.clientId,
+		discoveryEndpoint: oidc.data.discoveryEndpoint ?? computeDiscoveryUrl(provider.issuer),
+	};
+}
+
 export function getSsoProviderDetails(providerId: string, organizationId: string, request: Request) {
 	const provider = findProvider(providerId, organizationId);
 	const oidc = provider.oidcConfig;

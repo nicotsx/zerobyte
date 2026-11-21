@@ -48,7 +48,6 @@ const ssoSettingsResponse = z.object({
 			type: z.string(),
 			issuer: z.string(),
 			domain: z.string(),
-			autoLinkMatchingEmails: z.boolean(),
 			organizationId: z.string().nullable(),
 		})
 		.array(),
@@ -94,6 +93,40 @@ export const getUserSsoInvitationsDto = describeRoute({
 				},
 			},
 		},
+	},
+});
+
+export const getSsoAccountLinkProvidersDto = describeRoute({
+	description: "List OIDC providers the current user can link to in their active organization",
+	operationId: "getSsoAccountLinkProviders",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "Account linking providers",
+			content: {
+				"application/json": {
+					schema: resolver(
+						z.array(z.object({ providerId: z.string(), issuer: z.string(), linked: z.boolean() })),
+					),
+				},
+			},
+		},
+	},
+});
+
+export const startSsoAccountLinkBody = z.strictObject({ providerId: z.string().min(1) });
+
+export const startSsoAccountLinkDto = describeRoute({
+	description: "Start linking an OIDC provider to the signed-in account",
+	operationId: "startSsoAccountLink",
+	tags: ["Auth"],
+	responses: {
+		200: {
+			description: "Identity provider authorization URL",
+			content: { "application/json": { schema: resolver(z.object({ url: z.string() })) } },
+		},
+		400: { description: "The provider is unavailable or already linked" },
+		401: { description: "Browser session required" },
 	},
 });
 
@@ -148,27 +181,6 @@ export const deleteSsoInvitationDto = describeRoute({
 		},
 		403: {
 			description: "Forbidden",
-		},
-	},
-});
-
-export const updateSsoProviderAutoLinkingBody = z.object({
-	enabled: z.boolean(),
-});
-
-export const updateSsoProviderAutoLinkingDto = describeRoute({
-	description: "Update whether SSO sign-in can auto-link existing accounts by email",
-	operationId: "updateSsoProviderAutoLinking",
-	tags: ["Auth"],
-	responses: {
-		200: {
-			description: "SSO provider auto-linking setting updated successfully",
-		},
-		403: {
-			description: "Forbidden",
-		},
-		404: {
-			description: "Provider not found",
 		},
 	},
 });

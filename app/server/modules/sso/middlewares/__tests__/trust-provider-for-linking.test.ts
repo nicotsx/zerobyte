@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, test } from "vitest";
-import { eq } from "drizzle-orm";
 import { db } from "~/server/db/db";
 import { account, member, organization, ssoProvider, usersTable, verification } from "~/server/db/schema";
 import { resolveTrustedProvidersForRequest } from "../trust-provider-for-linking";
@@ -17,11 +16,7 @@ function createRequest(path: string, cookie?: string): Request {
 	return new Request(`http://test.local${path}`, { headers: cookie ? { Cookie: cookie } : undefined });
 }
 
-async function createSsoProviderRecord(
-	providerId: string,
-	autoLinkMatchingEmails: boolean,
-	options: { organizationId?: string; userId?: string } = {},
-) {
+async function createSsoProviderRecord(providerId: string, options: { organizationId?: string; userId?: string } = {}) {
 	const userId = options.userId ?? randomId();
 	const organizationId = options.organizationId ?? randomId();
 
@@ -50,7 +45,6 @@ async function createSsoProviderRecord(
 		userId,
 		issuer: "https://issuer.example.com",
 		domain: "example.com",
-		autoLinkMatchingEmails,
 	});
 
 	return { organizationId, userId };
@@ -78,80 +72,27 @@ describe("resolveTrustedProvidersForRequest", () => {
 		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/missing-provider"))).toEqual([]);
 	});
 
-	test.each([
-		{ callbackAutoLinking: true, sameOrgAutoLinking: true, expected: ["acme-saml", "pocket-id"] },
-		{ callbackAutoLinking: false, sameOrgAutoLinking: true, expected: ["acme-saml"] },
-		{ callbackAutoLinking: true, sameOrgAutoLinking: false, expected: ["pocket-id"] },
-		{ callbackAutoLinking: false, sameOrgAutoLinking: false, expected: [] },
-	])(
-		"returns trusted providers matrix (callback: $callbackAutoLinking, same-org: $sameOrgAutoLinking)",
-		async ({ callbackAutoLinking, sameOrgAutoLinking, expected }) => {
-			const { organizationId, userId } = await createSsoProviderRecord("pocket-id", callbackAutoLinking);
+	test("requires invitation confirmation even for a known provider", async () => {
+		await createSsoProviderRecord("pocket-id");
 
-			await createSsoProviderRecord("acme-saml", sameOrgAutoLinking, { organizationId, userId });
-			await createSsoProviderRecord("acme-disabled", false, { organizationId, userId });
-			await createSsoProviderRecord("other-org-provider", true);
-
-			const trustedProviders = await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id"));
-
-			expect([...trustedProviders].sort()).toEqual([...expected]);
-		},
-	);
-
-	test("supports /sso/saml2/callback/:providerId paths", async () => {
-		await createSsoProviderRecord("saml-provider", true);
-
-		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/saml2/callback/saml-provider"))).toEqual([
-			"saml-provider",
-		]);
-	});
-
-	test("supports callback paths nested under /api/auth", async () => {
-		await createSsoProviderRecord("prefixed-provider", true);
-
-		expect(
-			await resolveTrustedProvidersForRequest(createRequest("/api/auth/sso/callback/prefixed-provider")),
-		).toEqual(["prefixed-provider"]);
-	});
-
-	test("supports /sso/saml2/sp/acs/:providerId paths", async () => {
-		await createSsoProviderRecord("saml-acs-provider", true);
-
-		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/saml2/sp/acs/saml-acs-provider"))).toEqual([
-			"saml-acs-provider",
-		]);
-	});
-
-	test("updates trusted providers immediately when callback provider auto-linking is toggled", async () => {
-		await createSsoProviderRecord("pocket-id", true);
-
-		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id"))).toEqual([
-			"pocket-id",
-		]);
-
-		await db
-			.update(ssoProvider)
-			.set({ autoLinkMatchingEmails: false })
-			.where(eq(ssoProvider.providerId, "pocket-id"));
-
-		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id"))).toEqual([]);
+		expect(await resolveTrustedProvidersForRequest(createRequest("/api/auth/sso/callback/pocket-id"))).toEqual([]);
 	});
 
 	test("trusts only the callback provider selected by a valid invitation SSO intent", async () => {
-		const { organizationId, userId } = await createSsoProviderRecord("pocket-id", false);
-		await createSsoProviderRecord("acme-saml", false, { organizationId, userId });
+		const { organizationId, userId } = await createSsoProviderRecord("pocket-id");
+		await createSsoProviderRecord("oidc-backup", { organizationId, userId });
 		const token = await ssoService.createInvitationSsoIntent({
 			userId: randomId(),
 			invitationId: randomId(),
-			providerId: "acme-saml",
+			providerId: "oidc-backup",
 			organizationId,
 			email: "alice@example.com",
 		});
 		const cookie = `${SSO_INVITATION_INTENT_COOKIE}=${token}`;
 
 		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/pocket-id", cookie))).toEqual([]);
-		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/acme-saml", cookie))).toEqual([
-			"acme-saml",
+		expect(await resolveTrustedProvidersForRequest(createRequest("/sso/callback/oidc-backup", cookie))).toEqual([
+			"oidc-backup",
 		]);
 	});
 });

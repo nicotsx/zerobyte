@@ -10,7 +10,6 @@ import { ssoUrlSchema } from "~/lib/sso-configuration";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-import { updateSsoProviderAutoLinkingMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { Button } from "~/client/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/client/components/ui/card";
 import {
@@ -23,9 +22,7 @@ import {
 	FormMessage,
 } from "~/client/components/ui/form";
 import { Input } from "~/client/components/ui/input";
-import { Switch } from "~/client/components/ui/switch";
 import { authClient } from "~/client/lib/auth-client";
-import { parseError } from "~/client/lib/errors";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 
 const ssoProviderSchema = z.object({
@@ -35,7 +32,6 @@ const ssoProviderSchema = z.object({
 	clientId: z.string().min(1),
 	clientSecret: z.string().min(1),
 	discoveryEndpoint: ssoUrlSchema,
-	linkMatchingEmails: z.boolean(),
 });
 
 type ProviderForm = z.infer<typeof ssoProviderSchema>;
@@ -57,15 +53,10 @@ export function CreateSsoProviderPage() {
 			clientId: "",
 			clientSecret: "",
 			discoveryEndpoint: "",
-			linkMatchingEmails: false,
 		},
 	});
 
 	const providerId = useWatch({ control: form.control, name: "providerId" });
-
-	const updateProviderAutoLinking = useMutation({
-		...updateSsoProviderAutoLinkingMutation(),
-	});
 
 	const registerProvider = useMutation({
 		mutationFn: async (formData: ProviderForm) => {
@@ -83,17 +74,6 @@ export function CreateSsoProviderPage() {
 			});
 
 			if (error) throw error;
-
-			await updateProviderAutoLinking
-				.mutateAsync({
-					path: { providerId: formData.providerId },
-					body: { enabled: formData.linkMatchingEmails },
-				})
-				.catch((updateError) => {
-					toast.warning("Auto-link setting could not be saved", {
-						description: parseError(updateError)?.message,
-					});
-				});
 		},
 		onSuccess: () => {
 			toast.success("SSO provider registered successfully");
@@ -258,32 +238,6 @@ export function CreateSsoProviderPage() {
 									)}
 								/>
 							</div>
-
-							<FormField
-								control={form.control}
-								name="linkMatchingEmails"
-								render={({ field }) => (
-									<FormItem className="rounded-md border p-4">
-										<div className="flex items-start justify-between gap-4">
-											<div className="space-y-1">
-												<FormLabel>Link matching emails to existing accounts</FormLabel>
-												<FormDescription>
-													If enabled, users who sign in with this provider will automatically
-													access their existing account when the email address matches.
-												</FormDescription>
-											</div>
-											<FormControl>
-												<Switch
-													checked={field.value}
-													onCheckedChange={field.onChange}
-													disabled={registerProvider.isPending}
-												/>
-											</FormControl>
-										</div>
-										<FormMessage />
-									</FormItem>
-								)}
-							/>
 						</form>
 					</Form>
 

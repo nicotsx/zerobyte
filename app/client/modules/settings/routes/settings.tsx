@@ -19,6 +19,7 @@ import { ApiKeysSection } from "../components/api-keys-section";
 import { useNavigate } from "@tanstack/react-router";
 import { SsoSettingsSection } from "~/client/modules/sso/components/sso-settings-section";
 import { OrgMembersSection } from "../components/org-members-section";
+import { SsoAccountLinkSection } from "../components/sso-account-link-section";
 import { PendingInvitationsSection } from "../components/pending-invitations-section";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { DateTimeFormatSection } from "../components/date-time-format-section";
@@ -166,6 +167,8 @@ export function SettingsPage({
 								/>
 							</div>
 						</CardContent>
+
+						{permissions.hasRuntimeFeature("ssoManagement") && <SsoAccountLinkSection />}
 
 						{permissions.hasRuntimeFeature("ssoManagement") && (
 							<PendingInvitationsSection

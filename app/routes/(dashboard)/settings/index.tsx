@@ -22,6 +22,7 @@ export const Route = createFileRoute("/(dashboard)/settings/")({
 	validateSearch: z.object({
 		scope: z.enum(["personal", "organization", "instance"]).optional(),
 		tab: z.enum(["account", "organization"]).optional(),
+		ssoLink: z.literal("failed").optional(),
 	}),
 	errorComponent: () => <div>Failed to load settings</div>,
 	loaderDeps: ({ search }) => {

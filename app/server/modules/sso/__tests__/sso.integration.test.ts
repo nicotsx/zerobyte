@@ -1,8 +1,18 @@
 import { beforeEach, describe, expect, test } from "vitest";
 import type { GenericEndpointContext } from "better-auth";
 import { eq } from "drizzle-orm";
-import { db } from "~/server/db/db";
-import { account, invitation, member, organization, ssoProvider, usersTable, verification } from "~/server/db/schema";
+import { db, sqlite } from "~/server/db/db";
+import {
+	account,
+	invitation,
+	member,
+	organization,
+	sessionsTable,
+	ssoProvider,
+	usersTable,
+	verification,
+} from "~/server/db/schema";
+import { saveSsoAccountLink, startSsoAccountLink } from "../sso-account-link";
 import { ssoIntegration } from "../sso.integration";
 import { ensureDefaultOrg } from "~/server/lib/auth/helpers/create-default-org";
 import { SSO_INVITATION_INTENT_COOKIE, ssoService } from "../sso.service";
@@ -216,7 +226,7 @@ describe("ssoIntegration.resolveOrgMembership", () => {
 			email: "expired@example.com",
 			role: "member",
 			status: "pending",
-			expiresAt: new Date(Date.now() - 60 * 60 * 1000), // expired 1 hour ago
+			expiresAt: new Date(Date.now() - 60 * 60 * 1000),
 			createdAt: new Date(),
 			inviterId,
 		});
@@ -246,7 +256,6 @@ describe("ssoIntegration.resolveOrgMembership", () => {
 			domain: "example.com",
 		});
 
-		// Invitation was already consumed (user was removed from org, invitation remains accepted)
 		await db.insert(invitation).values({
 			id: randomId(),
 			organizationId,
@@ -282,7 +291,6 @@ describe("ssoIntegration.resolveOrgMembership", () => {
 			createdAt: new Date(),
 		});
 
-		// SSO provider belongs to org B
 		await db.insert(ssoProvider).values({
 			id: randomId(),
 			providerId: "oidc-org-b",
@@ -292,7 +300,6 @@ describe("ssoIntegration.resolveOrgMembership", () => {
 			domain: "example.com",
 		});
 
-		// User has a valid pending invitation, but only for org A — not org B
 		await db.insert(invitation).values({
 			id: randomId(),
 			organizationId: orgAId,
@@ -370,7 +377,7 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 		await db.delete(usersTable);
 	});
 
-	async function setupOrgWithProvider(providerId: string, autoLinkMatchingEmails = false) {
+	async function setupOrgWithProvider(providerId: string) {
 		const orgId = randomId();
 		const ownerId = await createUser(`owner-${randomSlug("u")}@example.com`, randomSlug("owner"));
 		await db
@@ -383,22 +390,22 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 			userId: ownerId,
 			issuer: "https://issuer.example.com",
 			domain: "example.com",
-			autoLinkMatchingEmails,
 		});
 		return { orgId, ownerId };
 	}
 
-	const autoLinkingCases = [
-		{ autoLinkingEnabled: false, autoLinkingLabel: "disabled" },
-		{ autoLinkingEnabled: true, autoLinkingLabel: "enabled" },
-	] as const;
-
-	test.each(autoLinkingCases)(
-		"allows linking for an existing organization member only when auto-linking is $autoLinkingLabel",
-		async ({ autoLinkingEnabled }) => {
-			const providerId = `oidc-acme-${autoLinkingEnabled ? "on" : "off"}`;
-			const { orgId } = await setupOrgWithProvider(providerId, autoLinkingEnabled);
-			const userId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
+	test.each([
+		{ role: "user", hasPassword: false },
+		{ role: "user", hasPassword: true },
+		{ role: "admin", hasPassword: true },
+	])(
+		"requires explicit linking for an existing $role member (password: $hasPassword)",
+		async ({ role, hasPassword }) => {
+			const providerId = "oidc-acme";
+			const { orgId } = await setupOrgWithProvider(providerId);
+			const create = hasPassword ? createUserWithCredentialAccount : createUser;
+			const userId = await create("alice@example.com", randomSlug("alice"));
+			await db.update(usersTable).set({ role }).where(eq(usersTable.id, userId));
 			await db.insert(member).values({
 				id: randomId(),
 				userId,
@@ -409,39 +416,17 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 
 			const allowed = await ssoIntegration.canLinkSsoAccount(userId, providerId, null);
 
-			expect(allowed).toBe(autoLinkingEnabled);
+			expect(allowed).toBe(false);
 		},
 	);
 
-	test.each(autoLinkingCases)(
-		"allows linking for a new SSO user with a valid pending invitation (auto-linking $autoLinkingLabel)",
-		async ({ autoLinkingEnabled }) => {
-			const providerId = `oidc-acme-${autoLinkingEnabled ? "on" : "off"}`;
-			const { orgId, ownerId } = await setupOrgWithProvider(providerId, autoLinkingEnabled);
-			const userId = await createUser("alice@example.com", randomSlug("alice"));
-			await db.insert(invitation).values({
-				id: randomId(),
-				organizationId: orgId,
-				email: "alice@example.com",
-				role: "member",
-				status: "pending",
-				expiresAt: new Date(Date.now() + 60 * 60 * 1000),
-				createdAt: new Date(),
-				inviterId: ownerId,
-			});
-
-			const allowed = await ssoIntegration.canLinkSsoAccount(userId, providerId, null);
-
-			expect(allowed).toBe(true);
-		},
-	);
-
-	test.each(autoLinkingCases)(
-		"blocks linking for an existing user account with a pending invitation when auto-linking is $autoLinkingLabel",
-		async ({ autoLinkingEnabled }) => {
-			const providerId = `oidc-acme-${autoLinkingEnabled ? "on" : "off"}`;
-			const { orgId, ownerId } = await setupOrgWithProvider(providerId, autoLinkingEnabled);
-			const userId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
+	test.each([false, true])(
+		"requires confirmation for an existing profile with an invitation (password: %s)",
+		async (hasPassword) => {
+			const providerId = "oidc-acme";
+			const { orgId, ownerId } = await setupOrgWithProvider(providerId);
+			const create = hasPassword ? createUserWithCredentialAccount : createUser;
+			const userId = await create("alice@example.com", randomSlug("alice"));
 			await db.insert(invitation).values({
 				id: randomId(),
 				organizationId: orgId,
@@ -464,7 +449,7 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 	);
 
 	test("allows an existing account to link only through a matching SSO invitation intent", async () => {
-		const { orgId, ownerId } = await setupOrgWithProvider("oidc-primary", false);
+		const { orgId, ownerId } = await setupOrgWithProvider("oidc-primary");
 		await db.insert(ssoProvider).values({
 			id: randomId(),
 			providerId: "oidc-backup",
@@ -472,7 +457,6 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 			userId: ownerId,
 			issuer: "https://backup-issuer.example.com",
 			domain: "example.com",
-			autoLinkMatchingEmails: false,
 		});
 		const userId = await createUserWithCredentialAccount("alice@example.com", randomSlug("alice"));
 		const invitationId = randomId();
@@ -572,5 +556,106 @@ describe("ssoIntegration.canLinkSsoAccount", () => {
 		);
 
 		expect(allowed).toBe(false);
+	});
+});
+
+async function createPendingAccountLink() {
+	const username = randomSlug("sso-link");
+	const email = `${username}@example.com`;
+	const userId = await createUser(email, username);
+	const { organizationId } = await ensureDefaultOrg(userId);
+
+	const providerId = randomSlug("oidc");
+	const sessionId = randomId();
+	const token = randomId();
+	const now = new Date();
+	const expiresAt = new Date(now.getTime() + 60_000);
+	const providerIdentity = {
+		id: randomId(),
+		issuer: "https://issuer.example.com",
+		clientId: "original-client",
+		discoveryEndpoint: "https://issuer.example.com/.well-known/openid-configuration",
+	};
+	await db.insert(ssoProvider).values({
+		id: providerIdentity.id,
+		providerId,
+		organizationId,
+		issuer: providerIdentity.issuer,
+		domain: "example.com",
+		oidcConfig: { clientId: providerIdentity.clientId, discoveryEndpoint: providerIdentity.discoveryEndpoint },
+	});
+	await db
+		.insert(sessionsTable)
+		.values({ id: sessionId, userId, token, activeOrganizationId: organizationId, expiresAt });
+
+	const linkDetails = { userId, email, sessionId, organizationId, providerId };
+	expect(await startSsoAccountLink(linkDetails, async () => true)).toBe(true);
+	const intent = db.query.verification.findFirst({ where: { value: userId } }).sync();
+	expect(intent).toBeDefined();
+	if (!intent) throw new Error("Link intent was not created");
+
+	const link = { ...linkDetails, id: intent.id, providerIdentity };
+	const binding = { userId, providerId, accountId: randomId(), createdAt: now, updatedAt: now };
+
+	return { link, binding, token };
+}
+
+test("a failed SSO account insert rolls back the link intent so it can be retried", async () => {
+	const { link, binding, token } = await createPendingAccountLink();
+	const { id, providerId, userId } = link;
+
+	sqlite.exec(`
+		CREATE TEMP TRIGGER fail_sso_account_link
+		BEFORE INSERT ON account
+		WHEN NEW.provider_id = '${providerId}'
+		BEGIN
+			SELECT RAISE(ABORT, 'forced SSO account insert failure');
+		END;
+	`);
+	try {
+		expect(() => saveSsoAccountLink(link, binding, token)).toThrow();
+	} finally {
+		sqlite.exec("DROP TRIGGER fail_sso_account_link");
+	}
+
+	expect(db.query.verification.findFirst({ where: { id } }).sync()).toBeDefined();
+	expect(db.query.account.findFirst({ where: { providerId } }).sync()).toBeUndefined();
+
+	saveSsoAccountLink(link, binding, token);
+
+	expect(db.query.verification.findFirst({ where: { id } }).sync()).toBeUndefined();
+	expect(db.query.account.findFirst({ where: { providerId } }).sync()).toMatchObject({ userId, providerId });
+});
+
+test("rejects an SSO link if the provider identity changed before the account write", async () => {
+	const { link, binding, token } = await createPendingAccountLink();
+
+	await db
+		.update(ssoProvider)
+		.set({
+			oidcConfig: { clientId: "replacement-client", discoveryEndpoint: link.providerIdentity.discoveryEndpoint },
+		})
+		.where(eq(ssoProvider.id, link.providerIdentity.id));
+
+	expect(() => saveSsoAccountLink(link, binding, token)).toThrow(
+		expect.objectContaining({ body: expect.objectContaining({ code: "ACCOUNT_LINK_REQUIRED" }) }),
+	);
+	expect(db.query.account.findFirst({ where: { providerId: link.providerId } }).sync()).toBeUndefined();
+	expect(db.query.verification.findFirst({ where: { id: link.id } }).sync()).toBeDefined();
+});
+
+test("allows an SSO link after a provider domain edit", async () => {
+	const { link, binding, token } = await createPendingAccountLink();
+
+	await db
+		.update(ssoProvider)
+		.set({ domain: "renamed.example.com" })
+		.where(eq(ssoProvider.id, link.providerIdentity.id));
+
+	saveSsoAccountLink(link, binding, token);
+
+	expect(db.query.account.findFirst({ where: { providerId: link.providerId } }).sync()).toMatchObject({
+		userId: link.userId,
+		providerId: link.providerId,
 	});
 });

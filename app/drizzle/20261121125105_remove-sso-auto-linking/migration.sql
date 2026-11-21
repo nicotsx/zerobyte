@@ -1,0 +1,1 @@
+ALTER TABLE `sso_provider` DROP COLUMN `auto_link_matching_emails`;

@@ -8,7 +8,6 @@ import {
 	deleteSsoInvitationMutation,
 	deleteSsoProviderMutation,
 	getSsoSettingsOptions,
-	updateSsoProviderAutoLinkingMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
 import type { GetSsoSettingsResponse } from "~/client/api-client/types.gen";
 import {
@@ -27,14 +26,12 @@ import { Button } from "~/client/components/ui/button";
 import { Input } from "~/client/components/ui/input";
 import { Label } from "~/client/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "~/client/components/ui/select";
-import { Switch } from "~/client/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { useOrganizationContext } from "~/client/hooks/use-org-context";
 import { useTimeFormat } from "~/client/lib/datetime";
 import { getOrigin } from "~/client/functions/get-origin";
 import { authClient } from "~/client/lib/auth-client";
 import { cn } from "~/client/lib/utils";
-import { parseError } from "~/client/lib/errors";
 import { useServerFn } from "@tanstack/react-start";
 
 type InvitationRole = "member" | "admin" | "owner";
@@ -55,19 +52,6 @@ export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 	const [inviteRole, setInviteRole] = useState<InvitationRole>("member");
 
 	const ssoSettingsQuery = useSuspenseQuery({ ...getSsoSettingsOptions(), initialData: initialSettings });
-
-	const updateProviderAutoLinkingMutation = useMutation({
-		...updateSsoProviderAutoLinkingMutation(),
-		onSuccess: (_, v) => {
-			let message = "Automatic account linking disabled";
-			if (v.body?.enabled) message = "Automatic account linking enabled";
-
-			toast.success(message);
-		},
-		onError: (error) => {
-			toast.error("Failed to update provider", { description: parseError(error)?.message });
-		},
-	});
 
 	const deleteProviderMutation = useMutation({
 		...deleteSsoProviderMutation(),
@@ -173,7 +157,6 @@ export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 								<TableHead>Domain</TableHead>
 								<TableHead>Issuer</TableHead>
 								<TableHead>Type</TableHead>
-								<TableHead>Auto-link existing account</TableHead>
 								<TableHead>Callback URL</TableHead>
 								<TableHead className="text-right">Actions</TableHead>
 							</TableRow>
@@ -190,23 +173,6 @@ export function SsoSettingsSection({ initialSettings, initialOrigin }: Props) {
 										<div className="flex items-center gap-2">
 											<span className="uppercase text-xs font-medium px-2 py-0.5 rounded border">
 												{provider.type}
-											</span>
-										</div>
-									</TableCell>
-									<TableCell>
-										<div className="flex items-center gap-2">
-											<Switch
-												checked={provider.autoLinkMatchingEmails}
-												disabled={updateProviderAutoLinkingMutation.isPending}
-												onCheckedChange={(enabled) => {
-													updateProviderAutoLinkingMutation.mutate({
-														path: { providerId: provider.providerId },
-														body: { enabled },
-													});
-												}}
-											/>
-											<span className="text-xs text-muted-foreground">
-												{provider.autoLinkMatchingEmails ? "On" : "Off"}
 											</span>
 										</div>
 									</TableCell>

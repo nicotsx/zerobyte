@@ -369,7 +369,7 @@ describe("API keys", () => {
 		}
 	});
 
-	test("does not allow API keys to mutate SSO admin resources", async () => {
+	test("does not allow API keys to mutate SSO resources", async () => {
 		const session = await createTestSessionWithOrgAdmin();
 		await addPassword(session);
 		const created = await createApiKey(session);
@@ -377,9 +377,9 @@ describe("API keys", () => {
 		const routes = [
 			{ method: "DELETE", path: "/api/v1/auth/sso-providers/test-provider" },
 			{
-				method: "PATCH",
-				path: "/api/v1/auth/sso-providers/test-provider/auto-linking",
-				body: { enabled: true },
+				method: "POST",
+				path: "/api/v1/auth/sso-account-links",
+				body: { providerId: "test-provider" },
 			},
 			{ method: "DELETE", path: "/api/v1/auth/sso-invitations/test-invitation" },
 		];

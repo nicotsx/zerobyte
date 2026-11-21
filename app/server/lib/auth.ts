@@ -23,7 +23,6 @@ import { convertLegacyUserOnFirstLogin } from "./auth/middlewares/convert-legacy
 import { enforcePasswordLoginPolicy } from "./auth/middlewares/password-login-policy";
 import { ensureDefaultOrg } from "./auth/helpers/create-default-org";
 import { ssoIntegration } from "../modules/sso/sso.integration";
-import { ACCOUNT_LINK_REQUIRED_DESCRIPTION } from "~/lib/sso-errors";
 import { authBaseURL } from "./auth/request-base-url";
 import { getPasskeyOrigins } from "./auth/base-url";
 
@@ -66,20 +65,16 @@ export const auth = betterAuth({
 	databaseHooks: {
 		account: {
 			create: {
-				before: async (account, ctx) => {
-					if (ssoIntegration.isSsoCallback(ctx)) {
-						const allowed = await ssoIntegration.canLinkSsoAccount(account.userId, account.providerId, ctx);
-						if (!allowed) {
-							throw new APIError("FORBIDDEN", {
-								code: "ACCOUNT_LINK_REQUIRED",
-								message: ACCOUNT_LINK_REQUIRED_DESCRIPTION,
-							});
-						}
-					}
-				},
+				before: ssoIntegration.onAccountCreate,
+			},
+			update: {
+				before: ssoIntegration.rejectAccountLinkWrite,
 			},
 		},
 		user: {
+			update: {
+				before: ssoIntegration.rejectAccountLinkWrite,
+			},
 			delete: {
 				before: async (user) => {
 					await authService.cleanupUserOrganizations(user.id);
@@ -87,9 +82,7 @@ export const auth = betterAuth({
 			},
 			create: {
 				before: async (user, ctx) => {
-					if (ssoIntegration.isSsoCallback(ctx)) {
-						await ssoIntegration.onUserCreate(user, ctx);
-					}
+					await ssoIntegration.onUserCreate(user, ctx);
 
 					const anyUser = await db.query.usersTable.findFirst();
 					const isFirstUser = !anyUser;
@@ -104,22 +97,15 @@ export const auth = betterAuth({
 
 					return { data: user };
 				},
-				after: async (user, ctx) => {
-					if (ssoIntegration.isSsoCallback(ctx)) {
-						await ssoIntegration.onUserCreated(user, ctx);
-					}
-				},
+				after: ssoIntegration.onUserCreated,
 			},
 		},
 		session: {
 			create: {
 				before: async (session, ctx) => {
-					if (ssoIntegration.isSsoCallback(ctx)) {
-						const membership = await ssoIntegration.resolveOrgMembershipOrThrow(session.userId, ctx);
-						return { data: { ...session, activeOrganizationId: membership.organizationId } };
-					}
-
-					const membership = await ensureDefaultOrg(session.userId);
+					const membership =
+						(await ssoIntegration.resolveSessionMembership(session.userId, ctx)) ??
+						(await ensureDefaultOrg(session.userId));
 
 					return { data: { ...session, activeOrganizationId: membership.organizationId } };
 				},
