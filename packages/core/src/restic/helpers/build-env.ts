@@ -21,6 +21,8 @@ const removeRuntimeSecretsDir = async (runtimeSecretsDir: string | undefined) =>
 	if (runtimeSecretsDir) await fs.rm(runtimeSecretsDir, { recursive: true, force: true }).catch(() => {});
 };
 
+export const toPosixPath = (pathArg: string) => pathArg.replace(/\\/g, "/");
+
 export const buildEnv = async (
 	config: RepositoryConfig,
 	organizationId: string,
@@ -156,7 +158,7 @@ export const buildEnv = async (
 					"-o",
 					"ServerAliveCountMax=240",
 					"-i",
-					keyPath,
+					toPosixPath(keyPath),
 				];
 
 				if (config.allowLegacySshRsa) {
@@ -171,7 +173,12 @@ export const buildEnv = async (
 					);
 					await writeFileWithMode(knownHostsPath, config.knownHosts, FILE_MODES.ownerReadWrite);
 					env._SFTP_KNOWN_HOSTS_PATH = knownHostsPath;
-					sshArgs.push("-o", "StrictHostKeyChecking=yes", "-o", `UserKnownHostsFile=${knownHostsPath}`);
+					sshArgs.push(
+						"-o",
+						"StrictHostKeyChecking=yes",
+						"-o",
+						`UserKnownHostsFile=${toPosixPath(knownHostsPath)}`,
+					);
 				} else {
 					sshArgs.push("-o", "StrictHostKeyChecking=yes");
 				}
