@@ -19,10 +19,7 @@ import type { ControllerCommandContext, RunningJob } from "./context";
 import { getTrustedRootDescriptors, type TrustedRootRegistry } from "./trusted-roots";
 import { resticDeps } from "./restic/deps";
 
-// The controller pings every 15 seconds. Hearing nothing for this long means the connection is dead,
-// even when the operating system still reports the TCP socket as established.
 export const CONTROLLER_SILENCE_TIMEOUT_MS = 90_000;
-const CONTROLLER_SILENCE_CHECK_INTERVAL_MS = 15_000;
 
 export type ControllerSession = {
 	onOpen: () => void;
@@ -40,7 +37,7 @@ export const createControllerSession = (
 	},
 ): ControllerSession => {
 	let isClosed = false;
-	let lastReceivedAt = performance.now();
+	let silence: { deadline: number; graceGranted: boolean } | undefined;
 
 	const outboundQueue = Effect.runSync(Queue.bounded<{ message: AgentMessage; wire: string }>(64));
 	const inboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));
@@ -62,61 +59,49 @@ export const createControllerSession = (
 		activeJobs: Effect.runSync(Ref.get(runningJobsRef)).size,
 	}));
 
+	const renewSilenceDeadline = () => {
+		silence = { deadline: performance.now() + CONTROLLER_SILENCE_TIMEOUT_MS, graceGranted: false };
+	};
+
+	const terminateTransport = () => {
+		try {
+			ws.terminate();
+		} catch (error) {
+			logger.error(`Failed to terminate controller WebSocket: ${toMessage(error)}`);
+		}
+	};
+
 	const diagnosticFiber = Effect.runFork(
 		Effect.forever(
 			Effect.gen(function* () {
 				yield* Effect.sleep(CONNECTION_DIAGNOSTIC_INTERVAL_MS);
 
 				const timer = diagnostics.checkTimer();
+				const missedTick = timer.timerDelayMs >= CONNECTION_DIAGNOSTIC_INTERVAL_MS;
 
-				if (
-					timer.timerDelayMs >= CONNECTION_DIAGNOSTIC_INTERVAL_MS ||
-					Math.abs(timer.clockDriftMs) >= CONNECTION_DIAGNOSTIC_INTERVAL_MS
-				) {
+				if (missedTick || Math.abs(timer.clockDriftMs) >= CONNECTION_DIAGNOSTIC_INTERVAL_MS) {
 					logger.warn(
 						"Agent session timer delayed or clock changed",
 						JSON.stringify({ ...diagnostics.snapshot(), ...timer }),
 					);
 				}
-			}),
-		),
-	);
 
-	// A close handshake never completes on a dead connection, so terminate drops the socket at once and fires onclose.
-	const forceCloseTransport = (code: number, reason: string) => {
-		const transport = ws as WebSocket & { terminate?: () => void };
+				if (isClosed || silence === undefined) return;
 
-		if (typeof transport.terminate === "function") {
-			transport.terminate();
-			return;
-		}
+				const now = performance.now();
+				if (now < silence.deadline) return;
 
-		ws.close(code, reason);
-	};
-
-	const silenceWatchdogFiber = Effect.runFork(
-		Effect.forever(
-			Effect.gen(function* () {
-				yield* Effect.sleep(CONTROLLER_SILENCE_CHECK_INTERVAL_MS);
-
-				const silentForMs = performance.now() - lastReceivedAt;
-
-				if (isClosed || silentForMs < CONTROLLER_SILENCE_TIMEOUT_MS) {
+				// A delayed timer can run before the socket delivers heartbeats that are already waiting.
+				if (missedTick && !silence.graceGranted) {
+					silence = { deadline: now + CONNECTION_DIAGNOSTIC_INTERVAL_MS, graceGranted: true };
 					return;
 				}
 
-				yield* Effect.sync(() => {
-					logger.warn(
-						`No message from controller for ${Math.round(silentForMs / 1000)}s, dropping the connection to reconnect`,
-						JSON.stringify(diagnostics.snapshot()),
-					);
-
-					try {
-						forceCloseTransport(4000, "controller_silent");
-					} catch (error) {
-						logger.error(`Failed to close silent controller websocket: ${toMessage(error)}`);
-					}
-				});
+				logger.warn(
+					"Controller stopped sending messages, dropping the connection to reconnect",
+					JSON.stringify(diagnostics.snapshot()),
+				);
+				terminateTransport();
 			}),
 		),
 	);
@@ -186,7 +171,6 @@ export const createControllerSession = (
 		logger.info("Agent session closed", JSON.stringify(diagnostics.snapshot()));
 
 		void Effect.runPromise(Fiber.interrupt(diagnosticFiber)).catch(() => {});
-		void Effect.runPromise(Fiber.interrupt(silenceWatchdogFiber)).catch(() => {});
 		void Effect.runPromise(abortRunningJobs).catch(() => {});
 		void Effect.runPromise(Fiber.interrupt(writerFiber)).catch(() => {});
 		void Effect.runPromise(Fiber.interrupt(processorFiber)).catch(() => {});
@@ -197,12 +181,7 @@ export const createControllerSession = (
 	const handleSendFailure = (reason: string) => {
 		logger.error(`Closing agent session after an outbound websocket send failed: ${reason}`);
 
-		try {
-			forceCloseTransport(1011, "send_failed");
-		} catch (error) {
-			logger.error(`Failed to close controller websocket after send failure: ${toMessage(error)}`);
-		}
-
+		terminateTransport();
 		closeSession();
 	};
 
@@ -269,6 +248,8 @@ export const createControllerSession = (
 
 	return {
 		onOpen: () => {
+			renewSilenceDeadline();
+
 			void Effect.runPromise(
 				offerOutbound({
 					type: "agent.ready",
@@ -290,7 +271,7 @@ export const createControllerSession = (
 				return;
 			}
 
-			lastReceivedAt = performance.now();
+			renewSilenceDeadline();
 			diagnostics.onReceived();
 
 			void Effect.runPromise(offerInbound(data as ControllerWireMessage)).catch((error) => {

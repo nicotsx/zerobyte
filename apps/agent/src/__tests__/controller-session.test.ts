@@ -173,14 +173,14 @@ test("an invalid completion reports job failure without aborting another backup"
 	}
 });
 
-test("closes the websocket when an outbound send throws", async () => {
-	const close = vi.fn(() => undefined);
+test("terminates the websocket when an outbound send throws", async () => {
+	const terminate = vi.fn();
 	const session = createControllerSession(
 		fromPartial({
 			send: () => {
 				throw new Error("socket write failed");
 			},
-			close,
+			terminate,
 		}),
 		{ trustedRoots: createTrustedRootRegistry() },
 	);
@@ -189,7 +189,7 @@ test("closes the websocket when an outbound send throws", async () => {
 		session.onOpen();
 
 		await waitForExpect(() => {
-			expect(close).toHaveBeenCalledTimes(1);
+			expect(terminate).toHaveBeenCalledOnce();
 		});
 	} finally {
 		session.close();
@@ -432,31 +432,80 @@ test.each([
 	}
 });
 
-test("drops a silent controller connection so the agent reconnects", async () => {
-	vi.useFakeTimers({ toFake: ["Date", "performance", "setTimeout", "clearTimeout", "setInterval", "clearInterval"] });
-	vi.spyOn(logger, "warn").mockImplementation(() => {});
-	vi.spyOn(logger, "info").mockImplementation(() => {});
+test("gives a newly opened socket a full silence window after a slow upgrade", async () => {
+	vi.useFakeTimers({ toFake: ["Date", "performance", "setTimeout", "clearTimeout"] });
 	const terminate = vi.fn();
-	const close = vi.fn();
-	const session = createControllerSession(fromPartial({ send: vi.fn(), terminate, close }), {
+	const session = createControllerSession(fromPartial({ send: vi.fn(), terminate }), {
+		trustedRoots: createTrustedRootRegistry(),
+	});
+
+	try {
+		await vi.advanceTimersByTimeAsync(CONTROLLER_SILENCE_TIMEOUT_MS - 5_000);
+		session.onOpen();
+		await vi.advanceTimersByTimeAsync(CONTROLLER_SILENCE_TIMEOUT_MS - 1);
+
+		expect(terminate).not.toHaveBeenCalled();
+
+		await vi.advanceTimersByTimeAsync(1);
+
+		expect(terminate).toHaveBeenCalledOnce();
+	} finally {
+		session.close();
+	}
+});
+
+test("gives the socket time to deliver pending heartbeats after an event loop stall", async () => {
+	vi.useFakeTimers({ toFake: ["Date", "performance", "setTimeout", "clearTimeout"] });
+	const now = performance.now.bind(performance);
+	let stalledMs = 0;
+	vi.spyOn(performance, "now").mockImplementation(() => now() + stalledMs);
+	const terminate = vi.fn();
+	const session = createControllerSession(fromPartial({ send: vi.fn(), terminate }), {
 		trustedRoots: createTrustedRootRegistry(),
 	});
 
 	try {
 		session.onOpen();
 		session.onMessage(createControllerMessage("heartbeat.ping", { sentAt: 1 }));
-		await vi.advanceTimersByTimeAsync(CONTROLLER_SILENCE_TIMEOUT_MS - 15_000);
+		await vi.advanceTimersByTimeAsync(14_999);
+		stalledMs = CONTROLLER_SILENCE_TIMEOUT_MS;
+		await vi.advanceTimersByTimeAsync(1);
+		session.onMessage(createControllerMessage("heartbeat.ping", { sentAt: 2 }));
+		await vi.advanceTimersByTimeAsync(CONTROLLER_SILENCE_TIMEOUT_MS - 1);
 
 		expect(terminate).not.toHaveBeenCalled();
 
-		await vi.advanceTimersByTimeAsync(30_000);
+		await vi.advanceTimersByTimeAsync(1);
 
-		expect(terminate).toHaveBeenCalled();
-		expect(close).not.toHaveBeenCalled();
-		expect(logger.warn).toHaveBeenCalledWith(
-			expect.stringContaining("No message from controller"),
-			expect.any(String),
-		);
+		expect(terminate).toHaveBeenCalledOnce();
+	} finally {
+		session.close();
+	}
+});
+
+test("repeated event loop stalls do not keep a silent socket alive", async () => {
+	vi.useFakeTimers({ toFake: ["Date", "performance", "setTimeout", "clearTimeout"] });
+	const now = performance.now.bind(performance);
+	let stalledMs = 0;
+	vi.spyOn(performance, "now").mockImplementation(() => now() + stalledMs);
+	const terminate = vi.fn();
+	const session = createControllerSession(fromPartial({ send: vi.fn(), terminate }), {
+		trustedRoots: createTrustedRootRegistry(),
+	});
+
+	try {
+		session.onOpen();
+		await vi.advanceTimersByTimeAsync(CONTROLLER_SILENCE_TIMEOUT_MS - 5_001);
+		stalledMs += 5_000;
+		await vi.advanceTimersByTimeAsync(1);
+
+		expect(terminate).not.toHaveBeenCalled();
+
+		await vi.advanceTimersByTimeAsync(4_999);
+		stalledMs += 5_000;
+		await vi.advanceTimersByTimeAsync(1);
+
+		expect(terminate).toHaveBeenCalledOnce();
 	} finally {
 		session.close();
 	}
