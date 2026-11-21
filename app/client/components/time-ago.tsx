@@ -1,4 +1,8 @@
-import { useTimeFormat, type DateInput } from "~/client/lib/datetime";
+import { useEffect, useState } from "react";
+import { useRootLoaderData } from "~/client/hooks/use-root-loader-data";
+import { rawFormatters, type DateInput } from "~/client/lib/datetime";
+
+const REFRESH_INTERVAL_MS = 30_000;
 
 type Props = {
 	date: DateInput;
@@ -6,7 +10,15 @@ type Props = {
 };
 
 export function TimeAgo({ date, className }: Props) {
-	const { formatTimeAgo } = useTimeFormat();
+	const { now: initialNow } = useRootLoaderData();
+	const [now, setNow] = useState(initialNow);
 
-	return <span className={className}>{formatTimeAgo(date)}</span>;
+	useEffect(() => {
+		// oxlint-disable-next-line react/set-state-in-effect
+		setNow(Date.now());
+		const interval = window.setInterval(() => setNow(Date.now()), REFRESH_INTERVAL_MS);
+		return () => window.clearInterval(interval);
+	}, []);
+
+	return <span className={className}>{rawFormatters.formatTimeAgo(date, now)}</span>;
 }
