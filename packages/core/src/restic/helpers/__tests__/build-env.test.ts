@@ -1,6 +1,8 @@
 import fs from "node:fs/promises";
 import os from "node:os";
-import { afterEach, describe, expect, test } from "vitest";
+import path from "node:path";
+import { afterEach, describe, expect, test, vi } from "vitest";
+import { addCommonArgs } from "../add-common-args";
 import { buildEnv } from "../build-env";
 import type { ResticDeps } from "../../types";
 
@@ -401,11 +403,40 @@ describe("buildEnv", () => {
 			expect(env._SFTP_SSH_ARGS).not.toContain("-p 22");
 		});
 
-		test("sets the key path in both _SFTP_KEY_PATH and SSH args -i flag", async () => {
+		test("sets the key path in both _SFTP_KEY_PATH and the SSH identity option", async () => {
 			const env = await buildEnvForTest(baseSftpConfig, "org-1");
 
-			expect(env._SFTP_KEY_PATH).toMatch(/\/zerobyte-restic-[^/]+\/zerobyte-ssh-/);
-			expect(env._SFTP_SSH_ARGS).toContain(`-i ${env._SFTP_KEY_PATH}`);
+			expect(env._SFTP_KEY_PATH).toMatch(/zerobyte-restic-[^/\\]+[/\\]zerobyte-ssh-/);
+			expect(env._SFTP_SSH_ARGS).toContain("IdentityFile=");
+		});
+
+		test("passes key and known-hosts paths with spaces and punctuation to Restic", async () => {
+			const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "Jane O'Doe, Jr-"));
+			tempDirs.add(tempDir);
+			const tmpdir = vi.spyOn(os, "tmpdir").mockReturnValue(tempDir);
+
+			try {
+				const env = await buildEnv(
+					{
+						...baseSftpConfig,
+						skipHostKeyCheck: false,
+						knownHosts: "backup.example.com ssh-rsa AAAAB3NzaC1...",
+					},
+					"org-1",
+					makeDeps(),
+				);
+				const args: string[] = [];
+				addCommonArgs(args, env);
+
+				const keyPath = env._SFTP_KEY_PATH?.split(path.sep).join("/").replaceAll("'", "\\'");
+				const knownHostsPath = env._SFTP_KNOWN_HOSTS_PATH?.split(path.sep).join("/").replaceAll("'", "\\'");
+
+				expect(args).toEqual(["--json", "-o", expect.stringMatching(/^"sftp\.args=.*"$/)]);
+				expect(args[2]).toContain(`-o 'IdentityFile=""${keyPath}""'`);
+				expect(args[2]).toContain(`-o 'UserKnownHostsFile=""${knownHostsPath}""'`);
+			} finally {
+				tmpdir.mockRestore();
+			}
 		});
 	});
 

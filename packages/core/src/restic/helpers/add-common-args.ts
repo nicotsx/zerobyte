@@ -13,7 +13,11 @@ export const addCommonArgs = (
 	}
 
 	if (env._SFTP_SSH_ARGS) {
-		args.push("-o", `sftp.args=${env._SFTP_SSH_ARGS}`);
+		const sftpOption = `sftp.args=${env._SFTP_SSH_ARGS}`;
+
+		// Restic reads each -o value as a CSV record.
+		const encodedOption = /[",\r\n]/.test(sftpOption) ? '"' + sftpOption.replaceAll('"', '""') + '"' : sftpOption;
+		args.push("-o", encodedOption);
 	}
 
 	if (env.AWS_S3_BUCKET_LOOKUP === "dns") {

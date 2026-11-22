@@ -21,6 +21,15 @@ const removeRuntimeSecretsDir = async (runtimeSecretsDir: string | undefined) =>
 	if (runtimeSecretsDir) await fs.rm(runtimeSecretsDir, { recursive: true, force: true }).catch(() => {});
 };
 
+const formatSftpPathOption = (option: "IdentityFile" | "UserKnownHostsFile", filePath: string) => {
+	const sshPath = path.sep === "\\" ? filePath.replaceAll("\\", "/") : filePath;
+	if (!/[\s'"\\]/.test(sshPath)) return `${option}=${sshPath}`;
+
+	// Restic removes the outer quotes before OpenSSH parses the quoted path.
+	const escapedPath = sshPath.replace(/['"\\]/g, "\\$&");
+	return `'${option}="${escapedPath}"'`;
+};
+
 export const buildEnv = async (
 	config: RepositoryConfig,
 	organizationId: string,
@@ -155,8 +164,8 @@ export const buildEnv = async (
 					"ServerAliveInterval=60",
 					"-o",
 					"ServerAliveCountMax=240",
-					"-i",
-					keyPath,
+					"-o",
+					formatSftpPathOption("IdentityFile", keyPath),
 				];
 
 				if (config.allowLegacySshRsa) {
@@ -171,7 +180,12 @@ export const buildEnv = async (
 					);
 					await writeFileWithMode(knownHostsPath, config.knownHosts, FILE_MODES.ownerReadWrite);
 					env._SFTP_KNOWN_HOSTS_PATH = knownHostsPath;
-					sshArgs.push("-o", "StrictHostKeyChecking=yes", "-o", `UserKnownHostsFile=${knownHostsPath}`);
+					sshArgs.push(
+						"-o",
+						"StrictHostKeyChecking=yes",
+						"-o",
+						formatSftpPathOption("UserKnownHostsFile", knownHostsPath),
+					);
 				} else {
 					sshArgs.push("-o", "StrictHostKeyChecking=yes");
 				}
