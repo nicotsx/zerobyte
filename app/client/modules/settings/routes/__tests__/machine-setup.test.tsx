@@ -34,6 +34,7 @@ const createAgent = (overrides: Partial<Agent> = {}): Agent => ({
 	kind: "remote",
 	status: "offline",
 	capabilities: emptyCapabilities,
+	update: { protocolVersion: null, availability: "none", delivery: null, targetTag: null, request: null },
 	lastSeenAt: null,
 	lastReadyAt: null,
 	createdAt: 1,

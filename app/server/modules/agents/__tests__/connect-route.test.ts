@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
 	getController: vi.fn(),
 	validateToken: vi.fn(),
 	markAgentConnecting: vi.fn(() => Promise.resolve<unknown>({ id: "registered" })),
-	markAgentOnline: vi.fn(() => Promise.resolve()),
+	markAgentOnline: vi.fn(() => Promise.resolve({ id: "registered" })),
 	markAgentSeen: vi.fn(() => Promise.resolve()),
 	markAgentOffline: vi.fn(() => Promise.resolve()),
 }));
@@ -68,7 +68,7 @@ beforeEach(() => {
 	mocks.getController.mockReset();
 	mocks.validateToken.mockReset();
 	mocks.markAgentConnecting.mockReset().mockResolvedValue({ id: "registered" });
-	mocks.markAgentOnline.mockReset().mockResolvedValue(undefined);
+	mocks.markAgentOnline.mockReset().mockResolvedValue({ id: "registered" });
 	mocks.markAgentSeen.mockReset().mockResolvedValue(undefined);
 	mocks.markAgentOffline.mockReset().mockResolvedValue(undefined);
 	mocks.getController.mockReturnValue({ isRunning: () => true });

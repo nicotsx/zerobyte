@@ -1,11 +1,10 @@
 import { Effect, Queue } from "effect";
-import type { parseAgentMessage, AgentMessage } from "@zerobyte/contracts/agent-protocol";
+import type { AgentFrame, AgentMessage } from "@zerobyte/contracts/agent-protocol";
 
 const MAX_QUEUED_MESSAGES = 64;
 export const MAX_AGENT_INBOUND_BYTES = 1024 * 1024;
 
-export type InboundAgentMessage = { text: string; parsed: ReturnType<typeof parseAgentMessage> };
-type QueueEntry = InboundAgentMessage & { bytes: number; progressKey: string | null };
+type QueueEntry = { frame: AgentFrame; bytes: number; progressKey: string | null };
 
 const progressKey = (message: AgentMessage) => {
 	switch (message.type) {
@@ -28,12 +27,9 @@ export const createAgentMessageInbox = () => {
 	let coalescedProgressMessages = 0;
 
 	return {
-		offer: ({ text, parsed }: InboundAgentMessage) => {
-			const bytes = Buffer.byteLength(text);
-
-			if (bytes > MAX_AGENT_INBOUND_BYTES) return false;
-
-			const key = parsed?.success ? progressKey(parsed.data) : null;
+		offer: (frame: AgentFrame, bytes: number) => {
+			const { message } = frame;
+			const key = message?.success ? progressKey(message.data) : null;
 			const pending = key === null ? undefined : pendingProgress.get(key);
 
 			if (pending) {
@@ -41,7 +37,7 @@ export const createAgentMessageInbox = () => {
 
 				if (nextQueuedBytes > MAX_AGENT_INBOUND_BYTES) return false;
 
-				Object.assign(pending, { text, parsed, bytes });
+				Object.assign(pending, { frame, bytes });
 				queuedBytes = nextQueuedBytes;
 				coalescedProgressMessages += 1;
 				return true;
@@ -49,7 +45,7 @@ export const createAgentMessageInbox = () => {
 
 			if (queuedBytes + bytes > MAX_AGENT_INBOUND_BYTES) return false;
 
-			const entry: QueueEntry = { text, parsed, bytes, progressKey: key };
+			const entry: QueueEntry = { frame, bytes, progressKey: key };
 
 			if (!Queue.offerUnsafe(queue, entry)) return false;
 
@@ -66,14 +62,14 @@ export const createAgentMessageInbox = () => {
 		},
 
 		take: Queue.take(queue).pipe(
-			Effect.map((entry): InboundAgentMessage => {
+			Effect.map((entry) => {
 				queuedBytes -= entry.bytes;
 
 				if (entry.progressKey !== null && pendingProgress.get(entry.progressKey) === entry) {
 					pendingProgress.delete(entry.progressKey);
 				}
 
-				return { text: entry.text, parsed: entry.parsed };
+				return entry.frame;
 			}),
 		),
 

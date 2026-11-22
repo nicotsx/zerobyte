@@ -5,6 +5,11 @@ import { openAPIRouteHandler } from "hono-openapi";
 export const createOpenApiHandler = (app: Hono) =>
 	openAPIRouteHandler(app, {
 		documentation: {
+			components: {
+				securitySchemes: {
+					agentBearer: { type: "http", scheme: "bearer", description: "Enrolled remote agent credential" },
+				},
+			},
 			info: {
 				title: "Zerobyte API",
 				version: "1.0.0",

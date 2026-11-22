@@ -25,7 +25,7 @@ import { LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "../constants
 
 const agentsServiceMocks = vi.hoisted(() => ({
 	markAgentConnecting: vi.fn((): Promise<unknown> => Promise.resolve({ id: "registered" })),
-	markAgentOnline: vi.fn((): Promise<unknown> => Promise.resolve(undefined)),
+	markAgentOnline: vi.fn((): Promise<unknown> => Promise.resolve({ id: "registered" })),
 	markAgentSeen: vi.fn((): Promise<unknown> => Promise.resolve(undefined)),
 	markAgentOffline: vi.fn((): Promise<unknown> => Promise.resolve(undefined)),
 }));
@@ -171,7 +171,7 @@ const deferred = <Value = void>() => {
 
 beforeEach(() => {
 	agentsServiceMocks.markAgentConnecting.mockReset().mockResolvedValue({ id: "registered" });
-	agentsServiceMocks.markAgentOnline.mockReset().mockResolvedValue(undefined);
+	agentsServiceMocks.markAgentOnline.mockReset().mockResolvedValue({ id: "registered" });
 	agentsServiceMocks.markAgentSeen.mockReset().mockResolvedValue(undefined);
 	agentsServiceMocks.markAgentOffline.mockReset().mockResolvedValue(undefined);
 });
@@ -346,6 +346,50 @@ describe("Protocol and liveness", () => {
 		await expect(run(controller.sendBackup(LOCAL_AGENT_ID, backupPayload))).resolves.toBe(false);
 
 		await run(controller.stop);
+	});
+
+	test.each([
+		["compatible", readyPayload],
+		["malformed", null],
+		["incompatible", { protocolVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION + 1 }],
+	])("closes a ready connection on a second %s readiness frame", async (_, payload) => {
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket("duplicate-ready");
+
+		try {
+			await connect(controller, socket);
+			await markReady(controller, socket);
+			await expect(run(controller.sendBackup(LOCAL_AGENT_ID, backupPayload))).resolves.toBe(true);
+			await vi.waitFor(() => expect(sentMessages(socket).map((message) => message.type)).toContain("backup.run"));
+
+			await deliver(controller, socket, JSON.stringify({ type: "agent.ready", payload }));
+			await vi.waitFor(() => expect(socket.close).toHaveBeenCalledWith(1002, "duplicate_agent_ready"));
+
+			expect(agentsServiceMocks.markAgentOnline).toHaveBeenCalledOnce();
+			await expect(run(controller.sendBackup(LOCAL_AGENT_ID, backupPayload))).resolves.toBe(false);
+		} finally {
+			await run(controller.stop);
+		}
+	});
+
+	test("keeps the connection unavailable if the credential changes before readiness", async () => {
+		agentsServiceMocks.markAgentOnline.mockResolvedValueOnce(undefined);
+		mockServe();
+
+		const { controller } = await startController();
+		const socket = createSocket("credential-changed-before-ready");
+
+		try {
+			await connect(controller, socket);
+			await deliver(controller, socket, createAgentMessage("agent.ready", readyPayload));
+
+			await vi.waitFor(() => expect(socket.close).toHaveBeenCalledWith(1008, "credential_changed"));
+			await expect(run(controller.sendBackup(LOCAL_AGENT_ID, backupPayload))).resolves.toBe(false);
+		} finally {
+			await run(controller.stop);
+		}
 	});
 
 	test("rejects operational messages before agent.ready", async () => {
@@ -1087,7 +1131,7 @@ describe("Message admission", () => {
 		await deliver(controller, socket, message);
 		await vi.waitFor(() => expect(socket.close).toHaveBeenCalledWith(1009, "message_limit"));
 
-		online.resolve(undefined);
+		online.resolve({ id: "registered" });
 		await vi.waitFor(() => expect(agentsServiceMocks.markAgentOffline).toHaveBeenCalledWith(socket.data));
 
 		const replacement = createSocket("connection-after-overflow");
@@ -1118,7 +1162,7 @@ describe("Message admission", () => {
 		await deliver(controller, socket, "x");
 		await vi.waitFor(() => expect(socket.close).toHaveBeenCalledWith(1009, "message_limit"));
 
-		online.resolve(undefined);
+		online.resolve({ id: "registered" });
 		await run(controller.stop);
 	});
 });
