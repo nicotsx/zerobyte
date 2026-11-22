@@ -3,6 +3,11 @@
 	"private": true,
 	"type": "module",
 	"exports": {
+		"./agent-release": {
+			"types": "./src/agent-release.ts",
+			"import": "./src/agent-release.ts",
+			"default": "./src/agent-release.ts"
+		},
 		"./agent-connection": {
 			"types": "./src/agent-connection.ts",
 			"import": "./src/agent-connection.ts",
@@ -34,7 +39,12 @@
 		"typecheck": "bun check --no-script"
 	},
 	"dependencies": {
+		"@sigstore/bundle": "5.0.1",
+		"@sigstore/tuf": "5.0.1",
+		"@sigstore/verify": "4.1.3",
 		"@zerobyte/core": "workspace:*",
+		"asn1js": "3.0.10",
+		"effect": "^4.1.5",
 		"zod": "^4.6.7"
 	},
 	"devDependencies": {

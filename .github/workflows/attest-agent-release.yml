@@ -1,0 +1,84 @@
+name: Attest Agent Release
+
+on:
+  workflow_call:
+
+jobs:
+  package-agent-release:
+    environment: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - uses: "./.github/actions/install-dependencies"
+
+      - name: Download agent binaries
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          pattern: zerobyte-agent-linux-*
+          merge-multiple: true
+          path: agent-dist
+
+      - name: Check for a published release
+        id: release
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
+        with:
+          script: |
+            try {
+              const { data } = await github.rest.repos.getReleaseByTag({
+                ...context.repo,
+                tag: process.env.GITHUB_REF_NAME,
+              });
+              core.setOutput('published', !data.draft);
+            } catch (error) {
+              if (error.status !== 404) throw error;
+              core.setOutput('published', false);
+            }
+
+      - name: Reuse the published attestation on reruns
+        if: steps.release.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release download "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY"
+          --pattern zerobyte-agent.sigstore.json --dir agent-dist
+
+      - name: Prepare attestation inputs
+        if: steps.release.outputs.published == 'false'
+        run: |
+          cat agent-dist/zerobyte-agent-linux-{x64,arm64}.sha256 > "$RUNNER_TEMP/agent-checksums.txt"
+          bun --no-env-file --print '
+            import { AGENT_PROTOCOL_VERSION } from "./packages/contracts/src/agent-protocol";
+            JSON.stringify({ tag: process.env.GITHUB_REF_NAME, protocolVersion: AGENT_PROTOCOL_VERSION })
+          ' > "$RUNNER_TEMP/agent-predicate.json"
+
+      - name: Attest the Linux agent executables
+        id: attest
+        if: steps.release.outputs.published == 'false'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4
+        with:
+          subject-checksums: ${{ runner.temp }}/agent-checksums.txt
+          predicate-type: https://zerobyte.app/attestation/agent-release/v1
+          predicate-path: ${{ runner.temp }}/agent-predicate.json
+
+      - name: Stage the new attestation
+        if: steps.release.outputs.published == 'false'
+        env:
+          BUNDLE_PATH: ${{ steps.attest.outputs.bundle-path }}
+        run: cp -- "$BUNDLE_PATH" agent-dist/zerobyte-agent.sigstore.json
+
+      - name: Verify the packaged update attestation
+        run: bun --no-env-file scripts/check-agent-attestation.ts "$GITHUB_REF_NAME" agent-dist
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: agent-release-assets
+          path: agent-dist/*
+          if-no-files-found: error
+          overwrite: true
