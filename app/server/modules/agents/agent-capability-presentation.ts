@@ -17,7 +17,7 @@ export const presentAgentCapabilities = (capabilities: AgentCapabilities) => ({
 	platform: getSafePresentationText(capabilities.platform, 128),
 	agentVersion: getSafePresentationText(capabilities.agentVersion, 128),
 	resticVersion: getSafePresentationText(capabilities.resticVersion, 128),
-	connectionSecurity: z.enum(["secure", "insecure"]).safeParse(capabilities.connectionSecurity).data ?? null,
+	connectionSecurity: capabilities.connectionSecurity ?? null,
 	trustedRoots: (capabilities.trustedRoots ?? []).map((root) => ({
 		id: root.id,
 		label: getSafeAllowedLocationLabel(root.label),

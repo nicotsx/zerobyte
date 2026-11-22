@@ -1,0 +1,1 @@
+ALTER TABLE `agents_table` ADD `update_request` text;

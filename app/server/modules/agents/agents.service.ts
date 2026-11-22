@@ -1,4 +1,5 @@
 import { and, eq, gt, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { Effect } from "effect";
 import type { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import { ConflictError, NotFoundError, UnauthorizedError } from "http-errors-enhanced";
 import { toAgentConnectionUrl } from "@zerobyte/contracts/agent-connection";
@@ -8,24 +9,35 @@ import { config } from "../../core/config";
 import { LOCAL_AGENT_CAPABILITIES, LOCAL_AGENT_ID, LOCAL_AGENT_KIND, LOCAL_AGENT_NAME } from "./constants";
 import { createAgentToken, hashAgentToken, parseAgentToken, type AgentIdentity } from "./helpers/tokens";
 import { publicAgentSchema } from "./agents.dto";
+import { agentUpdates } from "./agent-updates";
 import { presentAgentCapabilities } from "./agent-capability-presentation";
 
 const ENROLLMENT_LIFETIME_MS = 15 * 60 * 1000;
 
 type AgentCredential = Pick<AgentIdentity, "agentId" | "credentialVersion">;
-type AgentRuntimeUpdate = Partial<Pick<Agent, "status" | "capabilities" | "lastSeenAt" | "lastReadyAt" | "updatedAt">>;
+type AgentRuntimeUpdate = Partial<
+	Pick<Agent, "status" | "capabilities" | "lastSeenAt" | "lastReadyAt" | "updatedAt" | "updateRequest">
+>;
 
-const presentAgent = (agent: Agent) =>
-	publicAgentSchema.parse({ ...agent, capabilities: presentAgentCapabilities(agent.capabilities) });
-
-const listOrganizationAgents = async (organizationId: string) => {
-	const rows = await db.query.agentsTable.findMany({
-		where: { OR: [{ kind: "local" }, { AND: [{ organizationId }, { kind: "remote" }] }] },
-		orderBy: { createdAt: "asc" },
+const presentAgent = (agent: Agent, release: Parameters<typeof agentUpdates.presentUpdate>[1] = null) =>
+	publicAgentSchema.parse({
+		...agent,
+		capabilities: presentAgentCapabilities(agent.capabilities),
+		update: agentUpdates.presentUpdate(agent, release),
 	});
 
-	return rows.map(presentAgent);
-};
+const listOrganizationAgents = (organizationId: string) =>
+	Effect.gen(function* () {
+		const rows = yield* Effect.promise(async () =>
+			db.query.agentsTable.findMany({
+				where: { OR: [{ kind: "local" }, { AND: [{ organizationId }, { kind: "remote" }] }] },
+				orderBy: { createdAt: "asc" },
+			}),
+		);
+
+		const release = yield* agentUpdates.getReleaseForAgents(rows);
+		return rows.map((agent) => presentAgent(agent, release));
+	});
 
 const getAgent = async (agentId: string) => db.query.agentsTable.findFirst({ where: { id: agentId } });
 
@@ -134,6 +146,12 @@ const rotateRemoteAgentToken = async (organizationId: string, agentId: string) =
 			credentialVersion,
 			revokedAt: null,
 			status: "offline",
+			updateRequest: null,
+			capabilities: sql`case
+				when json_valid(${agentsTable.capabilities})
+					then json_remove(${agentsTable.capabilities}, '$.selfUpdate')
+				else '{}'
+			end`,
 			updatedAt: now,
 		},
 		agent.credentialVersion,
@@ -152,6 +170,7 @@ const revokeRemoteAgentToken = async (organizationId: string, agentId: string) =
 		enrollmentExpiresAt: null,
 		credentialVersion: sql`${agentsTable.credentialVersion} + 1`,
 		revokedAt: now,
+		updateRequest: null,
 		status: "offline",
 		updatedAt: now,
 	});
@@ -238,14 +257,57 @@ const markAgentConnecting = async (credential: AgentCredential) => {
 	return updateAgentRuntime(credential, { status: "connecting", lastSeenAt: now, updatedAt: now });
 };
 
-const markAgentOnline = async (credential: AgentCredential, capabilities: AgentCapabilities, readyAt = Date.now()) =>
-	updateAgentRuntime(credential, {
-		status: "online",
-		capabilities,
-		lastSeenAt: readyAt,
-		lastReadyAt: readyAt,
-		updatedAt: readyAt,
-	});
+const markAgentOnline = async (
+	{ agentId, credentialVersion }: AgentCredential,
+	capabilities: AgentCapabilities,
+	readyAt = Date.now(),
+) =>
+	db.transaction(
+		(tx) => {
+			const scope = and(eq(agentsTable.id, agentId), eq(agentsTable.credentialVersion, credentialVersion));
+			const agent = tx.select().from(agentsTable).where(scope).get();
+			if (!agent) return undefined;
+
+			const updateRequest = agentUpdates.reconcileAgentUpdate(agent, capabilities);
+
+			return tx
+				.update(agentsTable)
+				.set({
+					status: "online",
+					capabilities,
+					lastSeenAt: readyAt,
+					lastReadyAt: readyAt,
+					updatedAt: readyAt,
+					updateRequest,
+				})
+				.where(scope)
+				.returning()
+				.get();
+		},
+		{ behavior: "immediate" },
+	);
+
+const markAgentProtocolRejected = async (
+	{ agentId, credentialVersion }: AgentCredential,
+	metadata: AgentCapabilities,
+) =>
+	db.transaction(
+		(tx) => {
+			const scope = and(eq(agentsTable.id, agentId), eq(agentsTable.credentialVersion, credentialVersion));
+			const agent = tx.select().from(agentsTable).where(scope).get();
+			if (!agent) return;
+
+			const now = Date.now();
+			const capabilities = { ...agent.capabilities, ...metadata, protocolCompatible: false };
+			const updateRequest = agentUpdates.reconcileAgentUpdate({ ...agent, capabilities });
+
+			tx.update(agentsTable)
+				.set({ capabilities, updateRequest, lastSeenAt: now, updatedAt: now })
+				.where(scope)
+				.run();
+		},
+		{ behavior: "immediate" },
+	);
 
 const markAgentSeen = async (credential: AgentCredential, seenAt = Date.now()) =>
 	updateAgentRuntime(credential, { lastSeenAt: seenAt, updatedAt: seenAt });
@@ -256,11 +318,26 @@ const markAgentOffline = async (credential: AgentCredential, disconnectedAt = Da
 const markStaleRemoteAgentsOffline = async () => {
 	const now = Date.now();
 
-	return db
-		.update(agentsTable)
-		.set({ status: "offline", updatedAt: now })
-		.where(and(eq(agentsTable.kind, "remote"), inArray(agentsTable.status, ["online", "connecting"])))
-		.returning();
+	return db.transaction(
+		(tx) => {
+			const pending = tx.select().from(agentsTable).where(isNotNull(agentsTable.updateRequest)).all();
+
+			for (const agent of pending) {
+				const updateRequest = agentUpdates.reconcileAgentUpdate(agent);
+				if (updateRequest !== agent.updateRequest) {
+					tx.update(agentsTable).set({ updateRequest }).where(eq(agentsTable.id, agent.id)).run();
+				}
+			}
+
+			return tx
+				.update(agentsTable)
+				.set({ status: "offline", updatedAt: now })
+				.where(and(eq(agentsTable.kind, "remote"), inArray(agentsTable.status, ["online", "connecting"])))
+				.returning()
+				.all();
+		},
+		{ behavior: "immediate" },
+	);
 };
 
 export const agentsService = {
@@ -274,6 +351,7 @@ export const agentsService = {
 	revokeRemoteAgentToken,
 	markAgentConnecting,
 	markAgentOnline,
+	markAgentProtocolRejected,
 	markAgentSeen,
 	markAgentOffline,
 	markStaleRemoteAgentsOffline,

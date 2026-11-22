@@ -6985,6 +6985,163 @@ export type PostApiV1AgentsEnrollResponses = {
     200: unknown;
 };
 
+export type MaintainRemoteAgentData = {
+    body: {
+        action: 'poll';
+    } | {
+        action: 'start';
+        requestId: string;
+        attemptId: string;
+    } | {
+        action: 'fail';
+        requestId: string;
+        attemptId: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/agents/maintenance';
+};
+
+export type MaintainRemoteAgentErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+    /**
+     * A current enrolled agent credential is required
+     */
+    401: {
+        message: string;
+    };
+    /**
+     * The update request or attempt is stale. Poll for the current request.
+     */
+    409: {
+        message: string;
+    };
+    /**
+     * Reduce the request body to the maintenance request size limit
+     */
+    413: {
+        message: string;
+    };
+    /**
+     * Use HTTPS for agent maintenance
+     */
+    426: {
+        message: string;
+    };
+    /**
+     * Remote agents are disabled on this controller
+     */
+    503: {
+        message: string;
+    };
+};
+
+export type MaintainRemoteAgentError = MaintainRemoteAgentErrors[keyof MaintainRemoteAgentErrors];
+
+export type MaintainRemoteAgentResponses = {
+    /**
+     * Agent maintenance result
+     */
+    200: {
+        update: {
+            requestId: string;
+            status: 'queued' | 'started';
+            target: {
+                formatVersion: 1;
+                tag: string;
+                protocolVersion: number;
+                sha256: {
+                    x64: string;
+                    arm64: string;
+                };
+            };
+        } | null;
+    };
+};
+
+export type MaintainRemoteAgentResponse = MaintainRemoteAgentResponses[keyof MaintainRemoteAgentResponses];
+
+export type RequestAgentUpdateData = {
+    body: {
+        targetTag: string;
+    };
+    path: {
+        agentId: string;
+    };
+    query?: never;
+    url: '/api/v1/agents/{agentId}/update';
+};
+
+export type RequestAgentUpdateErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+    /**
+     * Sign in with a current browser session
+     */
+    401: {
+        message: string;
+    };
+    /**
+     * Organization owner or administrator permission is required
+     */
+    403: {
+        message: string;
+    };
+    /**
+     * Remote agent not found in this organization
+     */
+    404: {
+        message: string;
+    };
+    /**
+     * Refresh the agent and release details before trying again
+     */
+    409: {
+        message: string;
+    };
+    /**
+     * Remote agents are disabled or no verified release is available for this server version
+     */
+    503: {
+        message: string;
+    };
+};
+
+export type RequestAgentUpdateError = RequestAgentUpdateErrors[keyof RequestAgentUpdateErrors];
+
+export type RequestAgentUpdateResponses = {
+    /**
+     * Agent update request
+     */
+    200: {
+        protocolVersion: number | null;
+        availability: 'none' | 'required' | 'available';
+        delivery: 'remote' | 'manual' | null;
+        targetTag: string | null;
+        request: {
+            id: string;
+            targetTag: string;
+            status: 'queued' | 'started' | 'failed' | 'completed' | 'superseded';
+            requestedAt: number;
+        } | null;
+    };
+};
+
+export type RequestAgentUpdateResponse = RequestAgentUpdateResponses[keyof RequestAgentUpdateResponses];
+
 export type DeleteRemoteAgentData = {
     body?: never;
     path: {
@@ -7033,6 +7190,18 @@ export type ListAgentsResponses = {
                 label: string;
                 canBackup: boolean;
             }>;
+        };
+        update: {
+            protocolVersion: number | null;
+            availability: 'none' | 'required' | 'available';
+            delivery: 'remote' | 'manual' | null;
+            targetTag: string | null;
+            request: {
+                id: string;
+                targetTag: string;
+                status: 'queued' | 'started' | 'failed' | 'completed' | 'superseded';
+                requestedAt: number;
+            } | null;
         };
         lastSeenAt: number | null;
         lastReadyAt: number | null;
@@ -7090,6 +7259,18 @@ export type CreateRemoteAgentResponses = {
                     canBackup: boolean;
                 }>;
             };
+            update: {
+                protocolVersion: number | null;
+                availability: 'none' | 'required' | 'available';
+                delivery: 'remote' | 'manual' | null;
+                targetTag: string | null;
+                request: {
+                    id: string;
+                    targetTag: string;
+                    status: 'queued' | 'started' | 'failed' | 'completed' | 'superseded';
+                    requestedAt: number;
+                } | null;
+            };
             lastSeenAt: number | null;
             lastReadyAt: number | null;
             createdAt: number;
@@ -7137,6 +7318,18 @@ export type RotateRemoteAgentTokenResponses = {
                     canBackup: boolean;
                 }>;
             };
+            update: {
+                protocolVersion: number | null;
+                availability: 'none' | 'required' | 'available';
+                delivery: 'remote' | 'manual' | null;
+                targetTag: string | null;
+                request: {
+                    id: string;
+                    targetTag: string;
+                    status: 'queued' | 'started' | 'failed' | 'completed' | 'superseded';
+                    requestedAt: number;
+                } | null;
+            };
             lastSeenAt: number | null;
             lastReadyAt: number | null;
             createdAt: number;
@@ -7182,6 +7375,18 @@ export type RevokeRemoteAgentTokenResponses = {
                 label: string;
                 canBackup: boolean;
             }>;
+        };
+        update: {
+            protocolVersion: number | null;
+            availability: 'none' | 'required' | 'available';
+            delivery: 'remote' | 'manual' | null;
+            targetTag: string | null;
+            request: {
+                id: string;
+                targetTag: string;
+                status: 'queued' | 'started' | 'failed' | 'completed' | 'superseded';
+                requestedAt: number;
+            } | null;
         };
         lastSeenAt: number | null;
         lastReadyAt: number | null;

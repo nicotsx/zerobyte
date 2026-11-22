@@ -1,9 +1,9 @@
 import { expect, test } from "vitest";
 import { Effect } from "effect";
-import { createAgentMessage, parseAgentMessage, type AgentMessage } from "@zerobyte/contracts/agent-protocol";
+import { createAgentMessage, decodeAgentFrame, type AgentMessage } from "@zerobyte/contracts/agent-protocol";
 import { createAgentMessageInbox } from "../controller/message-inbox";
 
-const inbound = (text: string) => ({ text, parsed: parseAgentMessage(text) });
+const inbound = (text: string) => [decodeAgentFrame(text), Buffer.byteLength(text)] as const;
 
 const progress = (jobId: string, files: string[] = [], scheduleId = "schedule-1") =>
 	createAgentMessage("backup.progress", {
@@ -37,14 +37,14 @@ test.each(barriers)("$type remains between earlier and later progress", (barrier
 	const latest = progress("job-1", ["latest"]);
 	const control = createAgentMessage(barrier.type, barrier.payload);
 
-	expect(inbox.offer(inbound(first))).toBe(true);
-	expect(inbox.offer(inbound(control))).toBe(true);
-	expect(inbox.offer(inbound(intermediate))).toBe(true);
-	expect(Effect.runSync(inbox.take).text).toBe(first);
+	expect(inbox.offer(...inbound(first))).toBe(true);
+	expect(inbox.offer(...inbound(control))).toBe(true);
+	expect(inbox.offer(...inbound(intermediate))).toBe(true);
+	expect(Effect.runSync(inbox.take)).toEqual(decodeAgentFrame(first));
 
-	expect(inbox.offer(inbound(latest))).toBe(true);
-	expect(Effect.runSync(inbox.take).text).toBe(control);
-	expect(Effect.runSync(inbox.take).text).toBe(latest);
+	expect(inbox.offer(...inbound(latest))).toBe(true);
+	expect(Effect.runSync(inbox.take)).toEqual(decodeAgentFrame(control));
+	expect(Effect.runSync(inbox.take)).toEqual(decodeAgentFrame(latest));
 	expect(inbox.snapshot()).toMatchObject({ inboundQueuedMessages: 0, queuedBytes: 0, coalescedProgressMessages: 1 });
 });
 
@@ -55,12 +55,12 @@ test("progress for different jobs and schedules stays separate", () => {
 	const otherSchedule = progress("job-1", [], "schedule-2");
 	const latest = progress("job-1", ["latest"]);
 
-	for (const text of [first, otherJob, otherSchedule, latest]) expect(inbox.offer(inbound(text))).toBe(true);
+	for (const text of [first, otherJob, otherSchedule, latest]) expect(inbox.offer(...inbound(text))).toBe(true);
 
 	expect(inbox.snapshot().inboundQueuedMessages).toBe(3);
-	expect(Effect.runSync(inbox.take).text).toBe(latest);
-	expect(Effect.runSync(inbox.take).text).toBe(otherJob);
-	expect(Effect.runSync(inbox.take).text).toBe(otherSchedule);
+	expect(Effect.runSync(inbox.take)).toEqual(decodeAgentFrame(latest));
+	expect(Effect.runSync(inbox.take)).toEqual(decodeAgentFrame(otherJob));
+	expect(Effect.runSync(inbox.take)).toEqual(decodeAgentFrame(otherSchedule));
 });
 
 test("restore progress is coalesced without losing its completion", () => {
@@ -90,11 +90,11 @@ test("restore progress is coalesced without losing its completion", () => {
 		result: { message_type: "summary", files_restored: 3, files_skipped: 0, bytes_skipped: 0 },
 	});
 
-	for (const text of [...snapshots, completed]) expect(inbox.offer(inbound(text))).toBe(true);
+	for (const text of [...snapshots, completed]) expect(inbox.offer(...inbound(text))).toBe(true);
 
 	expect(inbox.snapshot().inboundQueuedMessages).toBe(2);
-	expect(Effect.runSync(inbox.take).text).toBe(snapshots[2]);
-	expect(Effect.runSync(inbox.take).text).toBe(completed);
+	expect(Effect.runSync(inbox.take)).toEqual(decodeAgentFrame(snapshots[2]));
+	expect(Effect.runSync(inbox.take)).toEqual(decodeAgentFrame(completed));
 });
 
 test("replacing progress respects the byte limit and accounts for UTF-8 size changes", () => {
@@ -106,25 +106,25 @@ test("replacing progress respects the byte limit and accounts for UTF-8 size cha
 	const remaining = inbox.snapshot().inboundByteLimit - Buffer.byteLength(first) - overhead;
 	const filler = progress("job-2", ["x".repeat(remaining)]);
 
-	expect(inbox.offer(inbound(first))).toBe(true);
-	expect(inbox.offer(inbound(filler))).toBe(true);
+	expect(inbox.offer(...inbound(first))).toBe(true);
+	expect(inbox.offer(...inbound(filler))).toBe(true);
 	expect(inbox.snapshot().queuedBytes).toBe(inbox.snapshot().inboundByteLimit);
 
-	expect(inbox.offer(inbound(larger))).toBe(false);
+	expect(inbox.offer(...inbound(larger))).toBe(false);
 	expect(inbox.snapshot().coalescedProgressMessages).toBe(0);
-	expect(inbox.offer(inbound(smaller))).toBe(true);
+	expect(inbox.offer(...inbound(smaller))).toBe(true);
 	expect(inbox.snapshot().queuedBytes).toBe(inbox.snapshot().inboundByteLimit - 2);
-	expect(Effect.runSync(inbox.take).text).toBe(smaller);
-	expect(Effect.runSync(inbox.take).text).toBe(filler);
+	expect(Effect.runSync(inbox.take)).toEqual(decodeAgentFrame(smaller));
+	expect(Effect.runSync(inbox.take)).toEqual(decodeAgentFrame(filler));
 	expect(inbox.snapshot().queuedBytes).toBe(0);
 });
 
 test("shutdown releases pending progress and prevents new admission", () => {
 	const inbox = createAgentMessageInbox();
 
-	expect(inbox.offer(inbound(progress("job-1")))).toBe(true);
+	expect(inbox.offer(...inbound(progress("job-1")))).toBe(true);
 	Effect.runSync(inbox.shutdown);
 
 	expect(inbox.snapshot()).toMatchObject({ inboundQueuedMessages: 0, queuedBytes: 0 });
-	expect(inbox.offer(inbound(progress("job-1")))).toBe(false);
+	expect(inbox.offer(...inbound(progress("job-1")))).toBe(false);
 });

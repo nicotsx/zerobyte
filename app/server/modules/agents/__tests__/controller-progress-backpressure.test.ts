@@ -5,7 +5,7 @@ import { createAgentConnection } from "../controller/connection";
 
 const agentsService = vi.hoisted(() => ({
 	markAgentConnecting: vi.fn(() => Promise.resolve({ id: "local" })),
-	markAgentOnline: vi.fn(() => Promise.resolve()),
+	markAgentOnline: vi.fn(() => Promise.resolve({ id: "local" })),
 	markAgentSeen: vi.fn(() => Promise.resolve()),
 }));
 

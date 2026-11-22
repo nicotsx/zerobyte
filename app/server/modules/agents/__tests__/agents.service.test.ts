@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { db } from "~/server/db/db";
 import { agentsTable } from "~/server/db/schema";
@@ -42,6 +42,34 @@ test("markAgentConnecting preserves last-known capabilities until the next ready
 	const agent = await agentsService.getAgent(LOCAL_AGENT_ID);
 
 	expect(agent?.capabilities).toEqual({ trustedRoots });
+});
+
+test("reads valid capability fields from legacy JSON with invalid metadata", async () => {
+	await agentsService.ensureLocalAgent();
+
+	const legacy = {
+		hostname: "legacy-host",
+		agentVersion: "v1.2.3",
+		protocolVersion: "2",
+		connectionSecurity: "unknown",
+		trustedRoots: { legacy: true },
+		extra: "preserved",
+	};
+	await db.update(agentsTable).set({ capabilities: sql`${JSON.stringify(legacy)}` });
+
+	const agent = await agentsService.getAgent(LOCAL_AGENT_ID);
+	const stored = db.select().from(agentsTable).where(eq(agentsTable.id, LOCAL_AGENT_ID)).get();
+
+	const expected = {
+		hostname: "legacy-host",
+		agentVersion: "v1.2.3",
+		protocolVersion: undefined,
+		connectionSecurity: undefined,
+		trustedRoots: undefined,
+		extra: "preserved",
+	};
+	expect(agent?.capabilities).toStrictEqual(expected);
+	expect(stored?.capabilities).toStrictEqual(expected);
 });
 
 test("agent runtime status moves from connecting to online, seen, and offline", async () => {

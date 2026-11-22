@@ -14,23 +14,20 @@ export type AuthorizationGrant = GrantIdentity &
 		| { kind: "session"; token: string; authSource: Exclude<AuthSource, "api-key"> }
 	);
 
-const hasCurrentMembership = async (grant: GrantIdentity) => {
-	const membership = await db.query.member.findFirst({
-		where: {
-			AND: [{ userId: grant.userId }, { organizationId: grant.organizationId }],
-		},
-		columns: { id: true },
-	});
-
-	return Boolean(membership);
-};
-
-export const isAuthorizationGrantCurrent = async (grant: AuthorizationGrant) => {
-	const membership = hasCurrentMembership(grant);
+export const getCurrentAuthorizationMembership = (grant: AuthorizationGrant, database: Pick<typeof db, "query">) => {
+	const membership = database.query.member
+		.findFirst({
+			where: {
+				AND: [{ userId: grant.userId }, { organizationId: grant.organizationId }],
+			},
+			columns: { role: true },
+		})
+		.sync();
+	if (!membership) return null;
 
 	if (grant.kind === "api-key") {
-		const [apiKey, user, isMember] = await Promise.all([
-			db.query.apikey.findFirst({
+		const apiKey = database.query.apikey
+			.findFirst({
 				where: {
 					AND: [
 						{ id: grant.apiKeyId },
@@ -40,37 +37,40 @@ export const isAuthorizationGrantCurrent = async (grant: AuthorizationGrant) => 
 					],
 				},
 				columns: { metadata: true },
-			}),
-			db.query.usersTable.findFirst({
+			})
+			.sync();
+
+		if (!apiKey || parseApiKeyOrganizationId(apiKey.metadata) !== grant.organizationId) return null;
+
+		const user = database.query.usersTable
+			.findFirst({
 				where: { id: grant.userId },
 				columns: { banned: true },
-			}),
-			membership,
-		]);
+			})
+			.sync();
 
-		return (
-			Boolean(apiKey) &&
-			Boolean(user && !user.banned) &&
-			isMember &&
-			parseApiKeyOrganizationId(apiKey?.metadata) === grant.organizationId
-		);
+		return user && !user.banned ? membership : null;
 	}
 
-	const [session, isMember] = await Promise.all([
-		db.query.sessionsTable.findFirst({
+	const session = database.query.sessionsTable
+		.findFirst({
 			where: {
 				AND: [{ token: grant.token }, { userId: grant.userId }, { expiresAt: { gt: new Date() } }],
 			},
 			columns: { activeOrganizationId: true, authSource: true },
-		}),
-		membership,
-	]);
+		})
+		.sync();
 
-	return (
-		Boolean(session) &&
-		isMember &&
-		session?.activeOrganizationId === grant.organizationId &&
-		isSessionAuthSourceAllowed(session.authSource) &&
-		getSessionAuthSource(session.authSource) === grant.authSource
-	);
+	if (
+		session?.activeOrganizationId !== grant.organizationId ||
+		!isSessionAuthSourceAllowed(session.authSource) ||
+		getSessionAuthSource(session.authSource) !== grant.authSource
+	) {
+		return null;
+	}
+
+	return membership;
 };
+
+export const isAuthorizationGrantCurrent = async (grant: AuthorizationGrant) =>
+	getCurrentAuthorizationMembership(grant, db) !== null;

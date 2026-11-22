@@ -25,8 +25,9 @@ import type { Volume as ContractVolume, BackendConfig, BackendStatus, BackendTyp
 import type { NotificationConfig, NotificationType } from "~/schemas/notifications";
 import type { TaskOutcome, TaskPersistenceFormatVersion } from "~/schemas/tasks";
 import type { ShortId } from "~/server/utils/branded";
-import type { AgentCapabilities } from "@zerobyte/contracts/agent-protocol";
 import { LOCAL_AGENT_ID } from "../modules/agents/constants";
+import { agentCapabilitiesColumn } from "./agent-capabilities";
+import { agentUpdateColumn } from "./agent-update";
 
 type SessionAuthSource = "browser-session" | "desktop-session";
 
@@ -227,7 +228,6 @@ export const ssoProvider = sqliteTable("sso_provider", {
 
 export type AgentKind = "local" | "remote";
 export type AgentStatus = "offline" | "connecting" | "online" | "degraded";
-export type { AgentCapabilities } from "@zerobyte/contracts/agent-protocol";
 export type VolumeSourceKind = "managed" | "filesystem";
 
 export const agentsTable = sqliteTable(
@@ -238,7 +238,10 @@ export const agentsTable = sqliteTable(
 		name: text("name").notNull(),
 		kind: text("kind").$type<AgentKind>().notNull(),
 		status: text("status").$type<AgentStatus>().notNull().default("offline"),
-		capabilities: text("capabilities", { mode: "json" }).$type<AgentCapabilities>().notNull().default({}),
+		capabilities: agentCapabilitiesColumn("capabilities")
+			.notNull()
+			.default(sql`'{}'`),
+		updateRequest: agentUpdateColumn("update_request"),
 		credentialHash: text("credential_hash"),
 		enrollmentExpiresAt: int("enrollment_expires_at", { mode: "number" }),
 		credentialVersion: int("credential_version", { mode: "number" }).notNull().default(0),
@@ -260,6 +263,7 @@ export const agentsTable = sqliteTable(
 );
 export type Agent = typeof agentsTable.$inferSelect;
 export type AgentInsert = typeof agentsTable.$inferInsert;
+export type AgentCapabilities = Agent["capabilities"];
 
 /**
  * Volumes Table

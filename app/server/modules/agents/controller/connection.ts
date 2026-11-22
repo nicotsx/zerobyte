@@ -3,10 +3,9 @@ import { logger, createConnectionDiagnostics } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import {
 	createControllerMessage,
-	parseAgentMessage,
-	parseAgentStartupMessage,
-	SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
-	SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
+	decodeAgentFrame,
+	getAgentStartupRejection,
+	type AgentFrame,
 	type AgentCapabilities,
 	type AgentMessage,
 	type AgentProtocolRejection,
@@ -17,7 +16,7 @@ import {
 import { agentsService } from "../agents.service";
 import type { AgentIdentity } from "../helpers/tokens";
 import { serverHasRuntimeFeature } from "../../../lib/permission-service";
-import { createAgentMessageInbox, MAX_AGENT_INBOUND_BYTES, type InboundAgentMessage } from "./message-inbox";
+import { createAgentMessageInbox, MAX_AGENT_INBOUND_BYTES } from "./message-inbox";
 
 const MAX_QUEUED_MESSAGES = 64;
 const READY_TIMEOUT_MS = 10_000;
@@ -124,36 +123,52 @@ export const createAgentConnection = (
 	const rejectStartup = (rejection: AgentProtocolRejection) =>
 		Effect.gen(function* () {
 			yield* logger.effect.warn(`Rejecting startup message from agent ${data.agentId}: ${rejection.reason}`);
+			if (
+				data.agentKind === "remote" &&
+				(rejection.reason === "agent_too_old" || rejection.reason === "agent_too_new")
+			) {
+				yield* Effect.tryPromise(() =>
+					agentsService.markAgentProtocolRejected(data, {
+						protocolVersion: rejection.protocolVersion,
+						agentVersion: rejection.agentVersion,
+						selfUpdate: rejection.selfUpdate,
+						connectionSecurity: data.connectionSecurity ?? null,
+						...(rejection.hostname !== undefined && { hostname: rejection.hostname }),
+						platform: rejection.platform,
+					}),
+				).pipe(
+					Effect.catch((error) =>
+						logger.effect.warn(
+							`Failed to persist protocol rejection for agent ${data.agentId}: ${toMessage(error.cause)}`,
+						),
+					),
+				);
+			}
+
 			yield* hooks.onEvent({ type: "agent.protocolRejected", payload: rejection });
 
 			return yield* new ConnectionClosed({ reason: rejection.reason, code: 1002 });
 		});
 
-	const handleMessage = ({ text, parsed }: InboundAgentMessage) =>
+	const handleMessage = (frame: AgentFrame) =>
 		Effect.gen(function* () {
 			if (capabilities === null) {
-				const startup = parseAgentStartupMessage(text);
-
-				if (!("success" in startup)) return yield* rejectStartup(startup);
+				const rejection = getAgentStartupRejection(frame);
+				if (rejection) return yield* rejectStartup(rejection);
+			} else if (frame.type === "agent.ready") {
+				capabilities = null;
+				return yield* new ConnectionClosed({ reason: "duplicate_agent_ready", code: 1002 });
 			}
 
-			if (parsed === null) return yield* logger.effect.warn(`Invalid JSON from agent ${data.agentId}`);
-
-			if (!parsed.success) {
-				if (capabilities !== null) {
-					return yield* logger.effect.warn(
-						`Invalid agent message from ${data.agentId}: ${parsed.error.message}`,
-					);
-				}
-
-				return yield* rejectStartup({
-					reason: "invalid_agent_ready",
-					supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
-					supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
-				});
+			const { message } = frame;
+			if (message === null) return yield* logger.effect.warn(`Invalid JSON from agent ${data.agentId}`);
+			if (!message.success) {
+				return yield* logger.effect.warn(
+					`Invalid agent message from ${data.agentId}: ${message.error.message}`,
+				);
 			}
 
-			const event = parsed.data;
+			const event = message.data;
 
 			diagnostics.onProcessing(event.type);
 
@@ -169,7 +184,11 @@ export const createAgentConnection = (
 						platform: event.payload.platform,
 					};
 
-					yield* Effect.tryPromise(() => agentsService.markAgentOnline(data, metadata, readyAt));
+					const agent = yield* Effect.tryPromise(() =>
+						agentsService.markAgentOnline(data, metadata, readyAt),
+					);
+
+					if (!agent) return yield* new ConnectionClosed({ reason: "credential_changed", code: 1008 });
 
 					livenessDeadline = performance.now() + LIVENESS_TIMEOUT_MS;
 					capabilities = event.payload.capabilities;
@@ -379,14 +398,15 @@ export const createAgentConnection = (
 
 				if (bytes > MAX_AGENT_INBOUND_BYTES) return rejectMessageLimit(bytes);
 
-				const parsed = parseAgentMessage(text);
+				const frame = decodeAgentFrame(text);
+				const { message } = frame;
 
-				if (capabilities !== null && parsed?.success && parsed.data.type === "heartbeat.pong") {
-					recordHeartbeat(parsed.data.payload.sentAt);
+				if (capabilities !== null && message?.success && message.data.type === "heartbeat.pong") {
+					recordHeartbeat(message.data.payload.sentAt);
 					return Effect.void;
 				}
 
-				if (!inbox.offer({ text, parsed })) return rejectMessageLimit(bytes);
+				if (!inbox.offer(frame, bytes)) return rejectMessageLimit(bytes);
 
 				return Effect.void;
 			}),

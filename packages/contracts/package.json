@@ -3,10 +3,20 @@
 	"private": true,
 	"type": "module",
 	"exports": {
+		"./agent-maintenance": {
+			"types": "./src/agent-maintenance.ts",
+			"import": "./src/agent-maintenance.ts",
+			"default": "./src/agent-maintenance.ts"
+		},
 		"./agent-release": {
 			"types": "./src/agent-release.ts",
 			"import": "./src/agent-release.ts",
 			"default": "./src/agent-release.ts"
+		},
+		"./agent-release-download": {
+			"types": "./src/agent-release-download.ts",
+			"import": "./src/agent-release-download.ts",
+			"default": "./src/agent-release-download.ts"
 		},
 		"./agent-connection": {
 			"types": "./src/agent-connection.ts",

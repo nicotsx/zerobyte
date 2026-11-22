@@ -1,14 +1,26 @@
 import { z } from "zod";
 import { readFile } from "node:fs/promises";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
+import {
+	AGENT_MAINTENANCE_ROUTE,
+	AGENT_MAINTENANCE_MAX_REQUEST_BYTES,
+	agentMaintenanceRequestSchema,
+} from "@zerobyte/contracts/agent-maintenance";
 import { validator } from "hono-openapi";
 import { requireAuth, requirePermission } from "../auth/auth.middleware";
 import { agentsService } from "./agents.service";
 import { agentManager } from "./agents-manager";
-import { isAllowedAgentRequest } from "./helpers/auth";
+import { getAgentBearerToken, isAllowedAgentRequest, isSecureAgentRequest } from "./helpers/auth";
+import { validateRemoteAgentToken } from "./helpers/tokens";
+import { agentUpdates } from "./agent-updates";
+import { runEffectPromise } from "~/server/utils/errors";
 import { serverHasRuntimeFeature } from "~/server/lib/permission-service";
 import { AGENT_BUNDLE_PATH, REMOTE_AGENTS_UNAVAILABLE } from "./constants";
 import {
+	agentMaintenanceDto,
+	requestAgentUpdateBody,
+	requestAgentUpdateDto,
 	deleteAgentDto,
 	createAgentBody,
 	createAgentDto,
@@ -49,8 +61,38 @@ export const agentsController = new Hono()
 			return c.text("Agent bundle unavailable. Build Zerobyte before enrolling a remote agent.", 503);
 		}
 	})
+	.post(
+		AGENT_MAINTENANCE_ROUTE,
+		agentMaintenanceDto,
+		bodyLimit({
+			maxSize: AGENT_MAINTENANCE_MAX_REQUEST_BYTES,
+			onError: (c) => c.json({ message: "Request body too large" }, 413),
+		}),
+		validator("json", agentMaintenanceRequestSchema),
+		async (c) => {
+			c.header("Cache-Control", "no-store");
+			if (!isSecureAgentRequest(c.req.raw)) return c.json({ message: "TLS required" }, 426);
+
+			const token = getAgentBearerToken(c.req.raw);
+			const identity = token ? await validateRemoteAgentToken(token) : null;
+			if (!identity) return c.json({ message: "Unauthorized" }, 401);
+
+			return c.json(agentUpdates.maintainAgent(identity, c.req.valid("json")));
+		},
+	)
 	.use(requireAuth)
 	.use(requirePermission("agents.manage"))
+	.post("/:agentId/update", requestAgentUpdateDto, validator("json", requestAgentUpdateBody), async (c) => {
+		const { targetTag } = c.req.valid("json");
+		c.req.raw.signal.throwIfAborted();
+
+		const update = await runEffectPromise(
+			agentUpdates.requestUpdate(c.get("authorizationGrant"), c.req.param("agentId"), targetTag),
+			{ signal: c.req.raw.signal },
+		);
+
+		return c.json(update);
+	})
 	.delete("/:agentId", deleteAgentDto, async (c) => {
 		const agentId = c.req.param("agentId");
 
@@ -59,7 +101,9 @@ export const agentsController = new Hono()
 	})
 	.get("/", listAgentsDto, async (c) => {
 		const organizationId = c.get("organizationId");
-		const agents = await agentsService.listOrganizationAgents(organizationId);
+		const agents = await runEffectPromise(agentsService.listOrganizationAgents(organizationId), {
+			signal: c.req.raw.signal,
+		});
 
 		return c.json<ListAgentsDto>(agents, 200);
 	})

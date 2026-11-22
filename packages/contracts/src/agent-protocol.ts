@@ -17,6 +17,9 @@ import {
 	filesystemSourceSchema,
 } from "./volumes";
 
+const agentSelfUpdateSchema = z.literal("systemd");
+export const agentProtocolVersionSchema = z.int().nonnegative();
+
 const compressionModeSchema = z.enum(["off", "auto", "max"]) satisfies z.ZodType<CompressionMode>;
 
 export const AGENT_PROTOCOL_VERSION = 2;
@@ -32,6 +35,8 @@ export type AgentProtocolRejection = {
 	protocolVersion?: number;
 	supportedProtocolMinVersion: number;
 	supportedProtocolMaxVersion: number;
+	agentVersion?: string;
+	selfUpdate?: z.infer<typeof agentSelfUpdateSchema>;
 	hostname?: string;
 	platform?: string;
 	messageType?: string;
@@ -180,6 +185,7 @@ export const agentCapabilitiesSchema = z
 		agentVersion: z.string().optional(),
 		resticVersion: z.string().optional(),
 		restore: z.boolean().optional(),
+		selfUpdate: agentSelfUpdateSchema.optional().catch(undefined),
 		trustedRoots: z.array(trustedRootDescriptorSchema).max(MAX_AGENT_TRUSTED_ROOTS).optional(),
 	})
 	.catchall(z.unknown());
@@ -190,25 +196,28 @@ const agentReadySchema = z.object({
 	type: z.literal("agent.ready"),
 	payload: z.object({
 		agentId: z.string(),
-		protocolVersion: z.number(),
+		protocolVersion: agentProtocolVersionSchema,
 		hostname: z.string(),
 		platform: z.string(),
 		capabilities: agentCapabilitiesSchema,
 	}),
 });
 
-const agentStartupMessageSchema = z.object({
-	type: z.string(),
-	payload: z.unknown().optional(),
-});
+const agentMessageEnvelopeSchema = z.object({ type: z.string() });
 
 const stableAgentReadySchema = z.object({
 	type: z.literal("agent.ready"),
 	payload: z.object({
-		protocolVersion: z.number(),
-		hostname: z.string().optional(),
-		platform: z.string().optional(),
-		capabilities: z.record(z.string(), z.unknown()).optional(),
+		protocolVersion: agentProtocolVersionSchema,
+		hostname: z.string().optional().catch(undefined),
+		platform: z.string().optional().catch(undefined),
+		capabilities: z
+			.object({
+				agentVersion: z.string().max(129).optional().catch(undefined),
+				selfUpdate: agentSelfUpdateSchema.optional().catch(undefined),
+			})
+			.optional()
+			.catch(undefined),
 	}),
 });
 
@@ -327,77 +336,51 @@ export const parseControllerMessage = (data: string) => {
 	return controllerMessageSchema.safeParse(parsed);
 };
 
-export const parseAgentMessage = (data: string) => {
-	const parsed = safeJsonParse(data);
-	if (parsed === null) {
-		return null;
-	}
+const validateAgentMessage = (message: unknown) => (message === null ? null : agentMessageSchema.safeParse(message));
 
-	return agentMessageSchema.safeParse(parsed);
-};
+export const parseAgentMessage = (data: string) => validateAgentMessage(safeJsonParse<unknown>(data));
 
-export const parseAgentStartupMessage = (data: string): AgentProtocolRejection | { success: true; data: unknown } => {
-	const parsed = safeJsonParse(data);
-	if (parsed === null) {
-		return {
-			reason: "invalid_startup_json",
-			supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
-			supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
-		};
-	}
+export function decodeAgentFrame(data: string) {
+	const json = safeJsonParse<unknown>(data);
+	const message = validateAgentMessage(json);
+	const type = message?.success ? message.data.type : agentMessageEnvelopeSchema.safeParse(json).data?.type;
 
-	const startupMessage = agentStartupMessageSchema.safeParse(parsed);
-	if (!startupMessage.success) {
-		return {
-			reason: "unexpected_startup_message",
-			supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
-			supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
-		};
-	}
+	const ready = type === "agent.ready" ? stableAgentReadySchema.safeParse(json) : null;
 
-	if (startupMessage.data.type !== "agent.ready") {
-		return {
-			reason: "unexpected_startup_message",
-			messageType: startupMessage.data.type,
-			supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
-			supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
-		};
-	}
+	return { message, type, ready };
+}
 
-	const readyMessage = stableAgentReadySchema.safeParse(parsed);
-	if (!readyMessage.success) {
-		return {
-			reason: "invalid_agent_ready",
-			supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
-			supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
-		};
-	}
+export type AgentFrame = ReturnType<typeof decodeAgentFrame>;
 
-	const { protocolVersion, hostname, platform } = readyMessage.data.payload;
-	if (protocolVersion < SUPPORTED_AGENT_PROTOCOL_MIN_VERSION) {
-		return {
-			reason: "agent_too_old",
-			protocolVersion,
-			hostname,
-			platform,
-			supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
-			supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
-		};
-	}
+export function getAgentStartupRejection({ message, type, ready }: AgentFrame): AgentProtocolRejection | null {
+	const supported = {
+		supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
+		supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
+	};
 
-	if (protocolVersion > SUPPORTED_AGENT_PROTOCOL_MAX_VERSION) {
-		return {
-			reason: "agent_too_new",
-			protocolVersion,
-			hostname,
-			platform,
-			supportedProtocolMinVersion: SUPPORTED_AGENT_PROTOCOL_MIN_VERSION,
-			supportedProtocolMaxVersion: SUPPORTED_AGENT_PROTOCOL_MAX_VERSION,
-		};
-	}
+	if (message === null) return { ...supported, reason: "invalid_startup_json" };
+	if (type !== "agent.ready") return { ...supported, reason: "unexpected_startup_message", messageType: type };
 
-	return { success: true, data: parsed };
-};
+	if (!ready?.success) return { ...supported, reason: "invalid_agent_ready" };
+
+	const { protocolVersion, hostname, platform, capabilities } = ready.data.payload;
+	const { supportedProtocolMinVersion, supportedProtocolMaxVersion } = supported;
+
+	let reason: AgentProtocolRejectionReason;
+	if (protocolVersion < supportedProtocolMinVersion) reason = "agent_too_old";
+	else if (protocolVersion > supportedProtocolMaxVersion) reason = "agent_too_new";
+	else return message.success ? null : { ...supported, reason: "invalid_agent_ready" };
+
+	return {
+		...supported,
+		reason,
+		protocolVersion,
+		agentVersion: capabilities?.agentVersion,
+		selfUpdate: capabilities?.selfUpdate,
+		hostname,
+		platform,
+	};
+}
 
 export const createControllerMessage = <TType extends ControllerMessage["type"]>(
 	type: TType,

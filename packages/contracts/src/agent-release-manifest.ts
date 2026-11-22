@@ -32,10 +32,42 @@ const releaseAssetSchema = z.enum([
 	AGENT_RELEASE_EXECUTABLES.arm64,
 ]);
 
+const AGENT_RELEASE_BASE_URL = "https://zerobyte.app/agent/";
+
 export function agentReleaseAssetUrl(tag: string, asset: z.infer<typeof releaseAssetSchema>): URL {
 	return new URL(
-		`https://zerobyte.app/agent/${encodeURIComponent(agentReleaseTagSchema.parse(tag))}/${releaseAssetSchema.parse(asset)}`,
+		`${AGENT_RELEASE_BASE_URL}${encodeURIComponent(agentReleaseTagSchema.parse(tag))}/${releaseAssetSchema.parse(asset)}`,
 	);
+}
+
+export async function fetchAgentReleaseAsset(url: URL, signal: AbortSignal): Promise<Response> {
+	if (!url.href.startsWith(AGENT_RELEASE_BASE_URL)) throw new Error("Invalid agent release asset URL");
+
+	const githubPath = `/nicotsx/zerobyte/releases/download/${url.pathname.slice("/agent/".length)}`;
+
+	for (let redirects = 0; redirects <= 2; redirects++) {
+		signal.throwIfAborted();
+		const response = await fetch(url, { redirect: "manual", signal, tls: { rejectUnauthorized: true } });
+		if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+
+		void response.body?.cancel().catch(() => {});
+		const location = response.headers.get("location");
+		if (!location) break;
+
+		const next = new URL(location, url);
+		if (next.protocol !== "https:" || next.port || next.username || next.password) {
+			break;
+		}
+
+		const toGitHub =
+			url.hostname === "zerobyte.app" && next.hostname === "github.com" && next.pathname === githubPath;
+		const toAssets = url.hostname === "github.com" && next.hostname === "release-assets.githubusercontent.com";
+		if (!toGitHub && !toAssets) break;
+
+		url = next;
+	}
+
+	throw new Error("Invalid agent release asset redirect");
 }
 
 const releaseStatementSchema = z.object({
