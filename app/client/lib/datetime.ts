@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useRootLoaderData } from "~/client/hooks/use-root-loader-data";
 import { rawFormatters, type DateInput } from "~/lib/datetime";
 
@@ -13,14 +13,7 @@ export {
 export type { DateFormatPreference, DateInput, TimeFormatPreference } from "~/lib/datetime";
 
 export function useTimeFormat() {
-	const { locale, timeZone, dateFormat, timeFormat, now } = useRootLoaderData();
-	const [currentNow, setCurrentNow] = useState(now);
-
-	useEffect(() => {
-		const nextNow = Date.now();
-		// oxlint-disable-next-line react/set-state-in-effect -- Replace the SSR timestamp with the client clock only after hydration.
-		setCurrentNow(nextNow === now ? now : nextNow);
-	}, [now]);
+	const { locale, timeZone, dateFormat, timeFormat } = useRootLoaderData();
 
 	return useMemo(
 		() => ({
@@ -48,8 +41,7 @@ export function useTimeFormat() {
 				}),
 			formatTime: (date: DateInput) =>
 				rawFormatters.formatTime(date, { locale, timeZone, dateFormat, timeFormat }),
-			formatTimeAgo: (date: DateInput) => rawFormatters.formatTimeAgo(date, currentNow),
 		}),
-		[locale, timeZone, currentNow, dateFormat, timeFormat],
+		[locale, timeZone, dateFormat, timeFormat],
 	);
 }

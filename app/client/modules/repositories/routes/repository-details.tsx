@@ -10,6 +10,7 @@ import {
 	startDoctorMutation,
 	unlockRepositoryMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
+import { TimeAgo } from "~/client/components/time-ago";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -51,7 +52,7 @@ export default function RepositoryDetailsPage({
 	initialBackupSchedules?: BackupSchedule[];
 	initialStats?: GetRepositoryStatsResponse;
 }) {
-	const { formatDateTime, formatTimeAgo } = useTimeFormat();
+	const { formatDateTime } = useTimeFormat();
 	const navigate = useNavigate();
 	const { tab } = useSearch({ from: "/(dashboard)/repositories/$repositoryId/" });
 	const activeTab = tab || "info";
@@ -139,7 +140,7 @@ export default function RepositoryDetailsPage({
 								</div>
 								<p className="text-sm text-muted-foreground mt-0.5">
 									Created {formatDateTime(repository.createdAt)} &middot; Last checked&nbsp;
-									{formatTimeAgo(repository.lastChecked)}
+									<TimeAgo date={repository.lastChecked} />
 								</p>
 							</div>
 						</div>

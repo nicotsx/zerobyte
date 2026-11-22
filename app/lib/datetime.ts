@@ -4,7 +4,7 @@ import {
 	type DateFormatPreference,
 	type TimeFormatPreference,
 } from "@zerobyte/core/utils";
-import { formatDistanceToNow, isValid } from "date-fns";
+import { formatDistance, isValid } from "date-fns";
 
 export type DateInput = Date | string | number | null | undefined;
 
@@ -164,7 +164,7 @@ function formatTimeAgo(date: DateInput, now = Date.now()): string {
 			return "just now";
 		}
 
-		const timeAgo = formatDistanceToNow(validDate, {
+		const timeAgo = formatDistance(validDate, now, {
 			addSuffix: true,
 			includeSeconds: true,
 		});

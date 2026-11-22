@@ -7,6 +7,7 @@ import type { GetScheduleMirrorsResponse } from "~/client/api-client";
 import { cancelTaskMutation } from "~/client/api-client/@tanstack/react-query.gen";
 import { RepositoryIcon } from "~/client/components/repository-icon";
 import { StatusDot } from "~/client/components/status-dot";
+import { TimeAgo } from "~/client/components/time-ago";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -22,7 +23,6 @@ import { Switch } from "~/client/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "~/client/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "~/client/components/ui/tooltip";
 import { isTaskActive, type TaskOfKind } from "~/client/hooks/use-active-tasks";
-import { useTimeFormat } from "~/client/lib/datetime";
 import { parseError } from "~/client/lib/errors";
 import type { Repository } from "~/client/lib/types";
 import { cn } from "~/client/lib/utils";
@@ -67,6 +67,15 @@ const getStatusLabel = (task: MirrorSyncDisplayTask | null) => {
 	return task.error ?? "Last sync did not complete";
 };
 
+const getStatusContent = (task: MirrorSyncDisplayTask | null, activeTaskCount: number) => {
+	if (!task) return "Never";
+	if (isTaskActive(task)) {
+		return activeTaskCount > 1 ? `Syncing · ${activeTaskCount} tasks` : "Syncing...";
+	}
+
+	return task.finishedAt ? <TimeAgo date={task.finishedAt} /> : "Never";
+};
+
 export const MirrorRepositoriesTable = ({
 	scheduleShortId,
 	repositories,
@@ -76,7 +85,6 @@ export const MirrorRepositoriesTable = ({
 	onToggleEnabled,
 	onRemove,
 }: Props) => {
-	const { formatTimeAgo } = useTimeFormat();
 	const [statusLookupMirror, setStatusLookupMirror] = useState<Repository | null>(null);
 	const [cancelConfirmationOpen, setCancelConfirmationOpen] = useState(false);
 	const [cancelConfirmation, setCancelConfirmation] = useState<CancelConfirmation | null>(null);
@@ -110,17 +118,6 @@ export const MirrorRepositoriesTable = ({
 		for (const taskId of taskIds) {
 			cancelSync.mutate({ path: { taskId } });
 		}
-	};
-
-	const getStatusText = (task: MirrorSyncDisplayTask | null, activeTaskCount: number) => {
-		if (!task) return "Never";
-		if (isTaskActive(task)) {
-			return activeTaskCount > 1 ? `Syncing · ${activeTaskCount} tasks` : "Syncing...";
-		}
-		if (task.finishedAt) {
-			return formatTimeAgo(task.finishedAt);
-		}
-		return "Never";
 	};
 
 	const assignedRepositories = Array.from(assignments.keys())
@@ -172,7 +169,7 @@ export const MirrorRepositoriesTable = ({
 							const cancelling = cancellationRequested || cancelSync.isPending;
 							const statusVariant = getStatusVariant(syncTask);
 							const statusLabel = getStatusLabel(syncTask);
-							const statusText = getStatusText(syncTask, mirrorSyncs.length);
+							const statusContent = getStatusContent(syncTask, mirrorSyncs.length);
 							const buttonTooltip = syncing ? "Cancel sync" : "Sync more snapshots";
 
 							const handleSyncAction = () => {
@@ -223,7 +220,7 @@ export const MirrorRepositoriesTable = ({
 														animated={syncing}
 													/>
 												</div>
-												<span className="text-sm text-muted-foreground">{statusText}</span>
+												<span className="text-sm text-muted-foreground">{statusContent}</span>
 											</div>
 										</TableCell>
 										<TableCell>

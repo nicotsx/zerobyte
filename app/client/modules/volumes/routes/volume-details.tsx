@@ -11,6 +11,7 @@ import {
 	unmountVolumeMutation,
 	updateVolumeMutation,
 } from "~/client/api-client/@tanstack/react-query.gen";
+import { TimeAgo } from "~/client/components/time-ago";
 import {
 	AlertDialog,
 	AlertDialogAction,
@@ -46,7 +47,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 	const navigate = useNavigate();
 	const searchParams = useSearch({ from: "/(dashboard)/volumes/$volumeId/" });
 	const activeTab = searchParams.tab || "info";
-	const { formatDateTime, formatTimeAgo } = useTimeFormat();
+	const { formatDateTime } = useTimeFormat();
 
 	const { data } = useSuspenseQuery({
 		...getVolumeOptions({ path: { shortId: volumeId } }),
@@ -225,7 +226,7 @@ export function VolumeDetails({ volumeId }: { volumeId: string }) {
 							</div>
 							<Separator orientation="vertical" className="h-4 hidden @lg:block" />
 							<span className="text-sm text-muted-foreground">
-								Checked {formatTimeAgo(volume.lastHealthCheck)}
+								Checked <TimeAgo date={volume.lastHealthCheck} />
 							</span>
 							{canMount && (
 								<>
