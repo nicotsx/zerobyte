@@ -1,7 +1,9 @@
 import { afterEach, expect, test, vi } from "vitest";
+import type { ListAgentsResponse } from "~/client/api-client/types.gen";
 import { PermissionsProvider } from "~/client/hooks/use-permissions";
 import { PERMISSION_KEYS, RUNTIME_FEATURE_KEYS, type Permission, type RuntimeFeature } from "~/lib/permission-policy";
 import { currentPermissionsQueryKey, type CurrentPermissions } from "~/server/lib/functions/current-permissions";
+import { HttpResponse, http, server } from "~/test/msw/server";
 import { act, cleanup, createTestQueryClient, render, screen, waitFor } from "~/test/test-utils";
 
 const { mockCurrentPermissionsQueryKey } = vi.hoisted(() => ({
@@ -9,8 +11,21 @@ const { mockCurrentPermissionsQueryKey } = vi.hoisted(() => ({
 }));
 
 vi.mock("@tanstack/react-router", () => ({
-	Link: ({ children, search, to }: { children: string; search: { scope: string }; to: string }) => (
-		<a href={`${to}?scope=${search.scope}`}>{children}</a>
+	Link: ({
+		children,
+		hash,
+		search,
+		to,
+		...props
+	}: {
+		children: React.ReactNode;
+		hash?: string;
+		search: { scope: string };
+		to: string;
+	}) => (
+		<a href={`${to}?scope=${search.scope}${hash ? `#${hash}` : ""}`} {...props}>
+			{children}
+		</a>
 	),
 	Outlet: () => null,
 	useNavigate: () => vi.fn(),
@@ -29,6 +44,7 @@ vi.mock("~/server/lib/functions/organization-context", () => ({
 	getOrganizationContext: vi.fn(),
 }));
 
+import { DashboardAgentUpdates } from "../dashboard-agent-updates";
 import { DashboardRecoveryKeyReminder } from "../layout";
 
 const activeOrganization = {
@@ -90,3 +106,81 @@ test("hides the reminder until permission refetch matches the switched organizat
 
 	await waitFor(() => expect(screen.getByRole("region", { name: "Recovery key reminder" })).toBeTruthy());
 });
+
+const updatableAgent: ListAgentsResponse[number] = {
+	id: "remote",
+	organizationId: activeOrganization.id,
+	name: "Remote",
+	kind: "remote",
+	status: "offline",
+	capabilities: {
+		hostname: null,
+		platform: null,
+		agentVersion: null,
+		resticVersion: null,
+		connectionSecurity: null,
+		trustedRoots: [],
+	},
+	update: { protocolVersion: 1, availability: "required", delivery: "manual", targetTag: "v1.2.3", request: null },
+	lastSeenAt: 10,
+	lastReadyAt: null,
+	createdAt: 1,
+	updatedAt: 10,
+	revokedAt: null,
+	credentialVersion: 1,
+};
+
+test.each([
+	{ canManage: true, hasFeature: true, permissionsMatch: true, expectedRequests: 1 },
+	{ canManage: false, hasFeature: true, permissionsMatch: true, expectedRequests: 0 },
+	{ canManage: true, hasFeature: false, permissionsMatch: true, expectedRequests: 0 },
+	{ canManage: true, hasFeature: true, permissionsMatch: false, expectedRequests: 0 },
+])(
+	"shows the current organization's update count only when permitted ($canManage, $hasFeature, $permissionsMatch)",
+	async ({ canManage, hasFeature, permissionsMatch, expectedRequests }) => {
+		const permissions = createCurrentPermissions(
+			permissionsMatch ? activeOrganization.id : "previous-organization",
+		);
+		permissions.permissions["agents.manage"] = canManage;
+		permissions.features.remoteAgents = hasFeature;
+
+		const queryClient = createTestQueryClient();
+		queryClient.setQueryDefaults(currentPermissionsQueryKey, { staleTime: Infinity });
+		queryClient.setQueryDefaults(["organization-context"], { staleTime: Infinity });
+		queryClient.setQueryData(currentPermissionsQueryKey, permissions);
+		queryClient.setQueryData(["organization-context"], {
+			organizations: [activeOrganization],
+			activeOrganization,
+			activeMember: null,
+		});
+
+		const agents: ListAgentsResponse = [
+			updatableAgent,
+			{ ...updatableAgent, id: "optional", update: { ...updatableAgent.update, availability: "available" } },
+			{ ...updatableAgent, id: "revoked", revokedAt: 42 },
+			{ ...updatableAgent, id: "unused", lastSeenAt: null },
+			{ ...updatableAgent, id: "local", kind: "local" },
+			{ ...updatableAgent, id: "current", update: { ...updatableAgent.update, availability: "none" } },
+		];
+		const request = vi.fn(({ request }: { request: Request }) => {
+			expect(new URL(request.url).searchParams.get("expectedOrganizationId")).toBe(activeOrganization.id);
+			return HttpResponse.json(agents);
+		});
+		server.use(http.get("/api/v1/agents", request));
+
+		render(
+			<PermissionsProvider>
+				<DashboardAgentUpdates />
+			</PermissionsProvider>,
+			{ queryClient, withSuspense: true },
+		);
+
+		if (expectedRequests) {
+			const link = await screen.findByRole("link", { name: /2 agent updates.*1 required and 1 optional/ });
+			expect(link.getAttribute("href")).toBe("/settings?scope=organization#machines");
+		} else {
+			expect(screen.queryByRole("link", { name: /agent update/ })).toBeNull();
+		}
+		expect(request).toHaveBeenCalledTimes(expectedRequests);
+	},
+);

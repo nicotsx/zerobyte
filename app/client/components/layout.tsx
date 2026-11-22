@@ -14,6 +14,7 @@ import { ThemeToggle } from "./theme-toggle";
 import { PermissionsProvider, usePermissions } from "../hooks/use-permissions";
 import { useOrganizationContext } from "../hooks/use-org-context";
 import { RecoveryKeyReminder } from "./recovery-key-reminder";
+import { DashboardAgentUpdates } from "./dashboard-agent-updates";
 import { useSystemInfo } from "../hooks/use-system-info";
 
 type Props = {
@@ -57,6 +58,7 @@ export function Layout({ loaderData }: Props) {
 											<span className="text-foreground">{loaderData.user.name}</span>
 										</span>
 									)}
+									<DashboardAgentUpdates />
 									<ThemeToggle />
 									{!isDesktop && (
 										<Tooltip>

@@ -339,7 +339,7 @@ export type GetSsoSettingsResponses = {
             type: string;
             issuer: string;
             domain: string;
-                organizationId: string | null;
+            organizationId: string | null;
         }>;
         invitations: Array<{
             id: string;
@@ -518,7 +518,7 @@ export type GetSsoProviderDetailsResponses = {
 export type GetSsoProviderDetailsResponse = GetSsoProviderDetailsResponses[keyof GetSsoProviderDetailsResponses];
 
 export type UpdateSsoProviderData = {
-    body: {
+    body?: {
         issuer?: string;
         domain?: string;
         discoveryEndpoint?: string;
@@ -620,7 +620,7 @@ export type ListVolumesResponses = {
             backend: 'nfs';
             server: string;
             exportPath: string;
-            port?: string | number;
+            port: number;
             version: '3' | '4' | '4.1';
             readOnly?: boolean;
         } | {
@@ -630,10 +630,10 @@ export type ListVolumesResponses = {
             username?: string;
             password?: string;
             guest?: boolean;
-            mapToContainerUidGid?: boolean;
-            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+            mapToContainerUidGid: boolean;
+            vers: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
             domain?: string;
-            port?: string | number;
+            port: number;
             readOnly?: boolean;
         } | {
             backend: 'webdav';
@@ -641,7 +641,7 @@ export type ListVolumesResponses = {
             path: string;
             username?: string;
             password?: string;
-            port?: string | number;
+            port: number;
             readOnly?: boolean;
             ssl?: boolean;
         } | {
@@ -656,16 +656,16 @@ export type ListVolumesResponses = {
         } | {
             backend: 'sftp';
             host: string;
-            port?: string | number;
+            port: number;
             username: string;
             password?: string;
             privateKey?: string;
             path: string;
             readOnly?: boolean;
-            skipHostKeyCheck?: boolean;
+            skipHostKeyCheck: boolean;
             knownHosts?: string;
-            allowLegacySshRsa?: boolean;
-            allowUnsafeSymlinkTargets?: boolean;
+            allowLegacySshRsa: boolean;
+            allowUnsafeSymlinkTargets: boolean;
         };
         createdAt: number;
         updatedAt: number;
@@ -799,7 +799,7 @@ export type CreateVolumeResponses = {
             backend: 'nfs';
             server: string;
             exportPath: string;
-            port?: string | number;
+            port: number;
             version: '3' | '4' | '4.1';
             readOnly?: boolean;
         } | {
@@ -809,10 +809,10 @@ export type CreateVolumeResponses = {
             username?: string;
             password?: string;
             guest?: boolean;
-            mapToContainerUidGid?: boolean;
-            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+            mapToContainerUidGid: boolean;
+            vers: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
             domain?: string;
-            port?: string | number;
+            port: number;
             readOnly?: boolean;
         } | {
             backend: 'webdav';
@@ -820,7 +820,7 @@ export type CreateVolumeResponses = {
             path: string;
             username?: string;
             password?: string;
-            port?: string | number;
+            port: number;
             readOnly?: boolean;
             ssl?: boolean;
         } | {
@@ -835,16 +835,16 @@ export type CreateVolumeResponses = {
         } | {
             backend: 'sftp';
             host: string;
-            port?: string | number;
+            port: number;
             username: string;
             password?: string;
             privateKey?: string;
             path: string;
             readOnly?: boolean;
-            skipHostKeyCheck?: boolean;
+            skipHostKeyCheck: boolean;
             knownHosts?: string;
-            allowLegacySshRsa?: boolean;
-            allowUnsafeSymlinkTargets?: boolean;
+            allowLegacySshRsa: boolean;
+            allowUnsafeSymlinkTargets: boolean;
         };
         createdAt: number;
         updatedAt: number;
@@ -1047,7 +1047,7 @@ export type GetVolumeResponses = {
                 backend: 'nfs';
                 server: string;
                 exportPath: string;
-                port?: string | number;
+                port: number;
                 version: '3' | '4' | '4.1';
                 readOnly?: boolean;
             } | {
@@ -1057,10 +1057,10 @@ export type GetVolumeResponses = {
                 username?: string;
                 password?: string;
                 guest?: boolean;
-                mapToContainerUidGid?: boolean;
-                vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+                mapToContainerUidGid: boolean;
+                vers: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
                 domain?: string;
-                port?: string | number;
+                port: number;
                 readOnly?: boolean;
             } | {
                 backend: 'webdav';
@@ -1068,7 +1068,7 @@ export type GetVolumeResponses = {
                 path: string;
                 username?: string;
                 password?: string;
-                port?: string | number;
+                port: number;
                 readOnly?: boolean;
                 ssl?: boolean;
             } | {
@@ -1083,16 +1083,16 @@ export type GetVolumeResponses = {
             } | {
                 backend: 'sftp';
                 host: string;
-                port?: string | number;
+                port: number;
                 username: string;
                 password?: string;
                 privateKey?: string;
                 path: string;
                 readOnly?: boolean;
-                skipHostKeyCheck?: boolean;
+                skipHostKeyCheck: boolean;
                 knownHosts?: string;
-                allowLegacySshRsa?: boolean;
-                allowUnsafeSymlinkTargets?: boolean;
+                allowLegacySshRsa: boolean;
+                allowUnsafeSymlinkTargets: boolean;
             };
             createdAt: number;
             updatedAt: number;
@@ -1141,7 +1141,7 @@ export type GetVolumeResponses = {
 export type GetVolumeResponse = GetVolumeResponses[keyof GetVolumeResponses];
 
 export type UpdateVolumeData = {
-    body: {
+    body?: {
         name?: string;
         autoRemount?: boolean;
         config?: {
@@ -1235,7 +1235,7 @@ export type UpdateVolumeResponses = {
             backend: 'nfs';
             server: string;
             exportPath: string;
-            port?: string | number;
+            port: number;
             version: '3' | '4' | '4.1';
             readOnly?: boolean;
         } | {
@@ -1245,10 +1245,10 @@ export type UpdateVolumeResponses = {
             username?: string;
             password?: string;
             guest?: boolean;
-            mapToContainerUidGid?: boolean;
-            vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+            mapToContainerUidGid: boolean;
+            vers: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
             domain?: string;
-            port?: string | number;
+            port: number;
             readOnly?: boolean;
         } | {
             backend: 'webdav';
@@ -1256,7 +1256,7 @@ export type UpdateVolumeResponses = {
             path: string;
             username?: string;
             password?: string;
-            port?: string | number;
+            port: number;
             readOnly?: boolean;
             ssl?: boolean;
         } | {
@@ -1271,16 +1271,16 @@ export type UpdateVolumeResponses = {
         } | {
             backend: 'sftp';
             host: string;
-            port?: string | number;
+            port: number;
             username: string;
             password?: string;
             privateKey?: string;
             path: string;
             readOnly?: boolean;
-            skipHostKeyCheck?: boolean;
+            skipHostKeyCheck: boolean;
             knownHosts?: string;
-            allowLegacySshRsa?: boolean;
-            allowUnsafeSymlinkTargets?: boolean;
+            allowLegacySshRsa: boolean;
+            allowUnsafeSymlinkTargets: boolean;
         };
         createdAt: number;
         updatedAt: number;
@@ -1506,14 +1506,14 @@ export type ListRepositoriesResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'r2';
@@ -1526,14 +1526,14 @@ export type ListRepositoriesResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'local';
@@ -1543,14 +1543,14 @@ export type ListRepositoriesResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'gcs';
@@ -1562,14 +1562,14 @@ export type ListRepositoriesResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'azure';
@@ -1582,14 +1582,14 @@ export type ListRepositoriesResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rclone';
@@ -1600,14 +1600,14 @@ export type ListRepositoriesResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rest';
@@ -1620,38 +1620,38 @@ export type ListRepositoriesResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'sftp';
             host: string;
-            port?: string | number;
+            port: number;
             user: string;
             path: string;
             privateKey: string;
-            skipHostKeyCheck?: boolean;
+            skipHostKeyCheck: boolean;
             knownHosts?: string;
-            allowLegacySshRsa?: boolean;
+            allowLegacySshRsa: boolean;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         };
         compressionMode: 'off' | 'auto' | 'max' | null;
@@ -1944,14 +1944,14 @@ export type GetRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'r2';
@@ -1964,14 +1964,14 @@ export type GetRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'local';
@@ -1981,14 +1981,14 @@ export type GetRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'gcs';
@@ -2000,14 +2000,14 @@ export type GetRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'azure';
@@ -2020,14 +2020,14 @@ export type GetRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rclone';
@@ -2038,14 +2038,14 @@ export type GetRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rest';
@@ -2058,38 +2058,38 @@ export type GetRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'sftp';
             host: string;
-            port?: string | number;
+            port: number;
             user: string;
             path: string;
             privateKey: string;
-            skipHostKeyCheck?: boolean;
+            skipHostKeyCheck: boolean;
             knownHosts?: string;
-            allowLegacySshRsa?: boolean;
+            allowLegacySshRsa: boolean;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         };
         compressionMode: 'off' | 'auto' | 'max' | null;
@@ -2115,7 +2115,7 @@ export type GetRepositoryResponses = {
 export type GetRepositoryResponse = GetRepositoryResponses[keyof GetRepositoryResponses];
 
 export type UpdateRepositoryData = {
-    body: {
+    body?: {
         name?: string;
         compressionMode?: 'off' | 'auto' | 'max';
         autoCheckEnabled?: boolean;
@@ -2322,14 +2322,14 @@ export type UpdateRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'r2';
@@ -2342,14 +2342,14 @@ export type UpdateRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'local';
@@ -2359,14 +2359,14 @@ export type UpdateRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'gcs';
@@ -2378,14 +2378,14 @@ export type UpdateRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'azure';
@@ -2398,14 +2398,14 @@ export type UpdateRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rclone';
@@ -2416,14 +2416,14 @@ export type UpdateRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'rest';
@@ -2436,38 +2436,38 @@ export type UpdateRepositoryResponses = {
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         } | {
             backend: 'sftp';
             host: string;
-            port?: string | number;
+            port: number;
             user: string;
             path: string;
             privateKey: string;
-            skipHostKeyCheck?: boolean;
+            skipHostKeyCheck: boolean;
             knownHosts?: string;
-            allowLegacySshRsa?: boolean;
+            allowLegacySshRsa: boolean;
             isExistingRepository?: boolean;
             customPassword?: string;
             cacert?: string;
             insecureTls?: boolean;
             uploadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
             downloadLimit?: {
-                enabled?: boolean;
-                value?: number;
-                unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                enabled: boolean;
+                value: number;
+                unit: 'Kbps' | 'Mbps' | 'Gbps';
             };
         };
         compressionMode: 'off' | 'auto' | 'max' | null;
@@ -2506,12 +2506,12 @@ export type GetRepositoryStatsResponses = {
      * Repository statistics
      */
     200: {
-        total_size?: number;
-        total_uncompressed_size?: number;
-        compression_ratio?: number;
-        compression_progress?: number;
-        compression_space_saving?: number;
-        snapshots_count?: number;
+        total_size: number;
+        total_uncompressed_size: number;
+        compression_ratio: number;
+        compression_progress: number;
+        compression_space_saving: number;
+        snapshots_count: number;
     };
 };
 
@@ -2531,12 +2531,12 @@ export type RefreshRepositoryStatsResponses = {
      * Refreshed repository statistics
      */
     200: {
-        total_size?: number;
-        total_uncompressed_size?: number;
-        compression_ratio?: number;
-        compression_progress?: number;
-        compression_space_saving?: number;
-        snapshots_count?: number;
+        total_size: number;
+        total_uncompressed_size: number;
+        compression_ratio: number;
+        compression_progress: number;
+        compression_space_saving: number;
+        snapshots_count: number;
     };
 };
 
@@ -3052,7 +3052,7 @@ export type ListBackupSchedulesResponses = {
                 backend: 'nfs';
                 server: string;
                 exportPath: string;
-                port?: string | number;
+                port: number;
                 version: '3' | '4' | '4.1';
                 readOnly?: boolean;
             } | {
@@ -3062,10 +3062,10 @@ export type ListBackupSchedulesResponses = {
                 username?: string;
                 password?: string;
                 guest?: boolean;
-                mapToContainerUidGid?: boolean;
-                vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+                mapToContainerUidGid: boolean;
+                vers: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
                 domain?: string;
-                port?: string | number;
+                port: number;
                 readOnly?: boolean;
             } | {
                 backend: 'webdav';
@@ -3073,7 +3073,7 @@ export type ListBackupSchedulesResponses = {
                 path: string;
                 username?: string;
                 password?: string;
-                port?: string | number;
+                port: number;
                 readOnly?: boolean;
                 ssl?: boolean;
             } | {
@@ -3088,16 +3088,16 @@ export type ListBackupSchedulesResponses = {
             } | {
                 backend: 'sftp';
                 host: string;
-                port?: string | number;
+                port: number;
                 username: string;
                 password?: string;
                 privateKey?: string;
                 path: string;
                 readOnly?: boolean;
-                skipHostKeyCheck?: boolean;
+                skipHostKeyCheck: boolean;
                 knownHosts?: string;
-                allowLegacySshRsa?: boolean;
-                allowUnsafeSymlinkTargets?: boolean;
+                allowLegacySshRsa: boolean;
+                allowUnsafeSymlinkTargets: boolean;
             };
             createdAt: number;
             updatedAt: number;
@@ -3152,14 +3152,14 @@ export type ListBackupSchedulesResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'r2';
@@ -3172,14 +3172,14 @@ export type ListBackupSchedulesResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'local';
@@ -3189,14 +3189,14 @@ export type ListBackupSchedulesResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'gcs';
@@ -3208,14 +3208,14 @@ export type ListBackupSchedulesResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'azure';
@@ -3228,14 +3228,14 @@ export type ListBackupSchedulesResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rclone';
@@ -3246,14 +3246,14 @@ export type ListBackupSchedulesResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rest';
@@ -3266,38 +3266,38 @@ export type ListBackupSchedulesResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'sftp';
                 host: string;
-                port?: string | number;
+                port: number;
                 user: string;
                 path: string;
                 privateKey: string;
-                skipHostKeyCheck?: boolean;
+                skipHostKeyCheck: boolean;
                 knownHosts?: string;
-                allowLegacySshRsa?: boolean;
+                allowLegacySshRsa: boolean;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             };
             compressionMode: 'off' | 'auto' | 'max' | null;
@@ -3524,7 +3524,7 @@ export type GetBackupScheduleResponses = {
                 backend: 'nfs';
                 server: string;
                 exportPath: string;
-                port?: string | number;
+                port: number;
                 version: '3' | '4' | '4.1';
                 readOnly?: boolean;
             } | {
@@ -3534,10 +3534,10 @@ export type GetBackupScheduleResponses = {
                 username?: string;
                 password?: string;
                 guest?: boolean;
-                mapToContainerUidGid?: boolean;
-                vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+                mapToContainerUidGid: boolean;
+                vers: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
                 domain?: string;
-                port?: string | number;
+                port: number;
                 readOnly?: boolean;
             } | {
                 backend: 'webdav';
@@ -3545,7 +3545,7 @@ export type GetBackupScheduleResponses = {
                 path: string;
                 username?: string;
                 password?: string;
-                port?: string | number;
+                port: number;
                 readOnly?: boolean;
                 ssl?: boolean;
             } | {
@@ -3560,16 +3560,16 @@ export type GetBackupScheduleResponses = {
             } | {
                 backend: 'sftp';
                 host: string;
-                port?: string | number;
+                port: number;
                 username: string;
                 password?: string;
                 privateKey?: string;
                 path: string;
                 readOnly?: boolean;
-                skipHostKeyCheck?: boolean;
+                skipHostKeyCheck: boolean;
                 knownHosts?: string;
-                allowLegacySshRsa?: boolean;
-                allowUnsafeSymlinkTargets?: boolean;
+                allowLegacySshRsa: boolean;
+                allowUnsafeSymlinkTargets: boolean;
             };
             createdAt: number;
             updatedAt: number;
@@ -3624,14 +3624,14 @@ export type GetBackupScheduleResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'r2';
@@ -3644,14 +3644,14 @@ export type GetBackupScheduleResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'local';
@@ -3661,14 +3661,14 @@ export type GetBackupScheduleResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'gcs';
@@ -3680,14 +3680,14 @@ export type GetBackupScheduleResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'azure';
@@ -3700,14 +3700,14 @@ export type GetBackupScheduleResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rclone';
@@ -3718,14 +3718,14 @@ export type GetBackupScheduleResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rest';
@@ -3738,38 +3738,38 @@ export type GetBackupScheduleResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'sftp';
                 host: string;
-                port?: string | number;
+                port: number;
                 user: string;
                 path: string;
                 privateKey: string;
-                skipHostKeyCheck?: boolean;
+                skipHostKeyCheck: boolean;
                 knownHosts?: string;
-                allowLegacySshRsa?: boolean;
+                allowLegacySshRsa: boolean;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             };
             compressionMode: 'off' | 'auto' | 'max' | null;
@@ -3977,7 +3977,7 @@ export type GetBackupScheduleForVolumeResponses = {
                 backend: 'nfs';
                 server: string;
                 exportPath: string;
-                port?: string | number;
+                port: number;
                 version: '3' | '4' | '4.1';
                 readOnly?: boolean;
             } | {
@@ -3987,10 +3987,10 @@ export type GetBackupScheduleForVolumeResponses = {
                 username?: string;
                 password?: string;
                 guest?: boolean;
-                mapToContainerUidGid?: boolean;
-                vers?: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
+                mapToContainerUidGid: boolean;
+                vers: '1.0' | '2.0' | '2.1' | '3.0' | 'auto';
                 domain?: string;
-                port?: string | number;
+                port: number;
                 readOnly?: boolean;
             } | {
                 backend: 'webdav';
@@ -3998,7 +3998,7 @@ export type GetBackupScheduleForVolumeResponses = {
                 path: string;
                 username?: string;
                 password?: string;
-                port?: string | number;
+                port: number;
                 readOnly?: boolean;
                 ssl?: boolean;
             } | {
@@ -4013,16 +4013,16 @@ export type GetBackupScheduleForVolumeResponses = {
             } | {
                 backend: 'sftp';
                 host: string;
-                port?: string | number;
+                port: number;
                 username: string;
                 password?: string;
                 privateKey?: string;
                 path: string;
                 readOnly?: boolean;
-                skipHostKeyCheck?: boolean;
+                skipHostKeyCheck: boolean;
                 knownHosts?: string;
-                allowLegacySshRsa?: boolean;
-                allowUnsafeSymlinkTargets?: boolean;
+                allowLegacySshRsa: boolean;
+                allowUnsafeSymlinkTargets: boolean;
             };
             createdAt: number;
             updatedAt: number;
@@ -4077,14 +4077,14 @@ export type GetBackupScheduleForVolumeResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'r2';
@@ -4097,14 +4097,14 @@ export type GetBackupScheduleForVolumeResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'local';
@@ -4114,14 +4114,14 @@ export type GetBackupScheduleForVolumeResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'gcs';
@@ -4133,14 +4133,14 @@ export type GetBackupScheduleForVolumeResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'azure';
@@ -4153,14 +4153,14 @@ export type GetBackupScheduleForVolumeResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rclone';
@@ -4171,14 +4171,14 @@ export type GetBackupScheduleForVolumeResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rest';
@@ -4191,38 +4191,38 @@ export type GetBackupScheduleForVolumeResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'sftp';
                 host: string;
-                port?: string | number;
+                port: number;
                 user: string;
                 path: string;
                 privateKey: string;
-                skipHostKeyCheck?: boolean;
+                skipHostKeyCheck: boolean;
                 knownHosts?: string;
-                allowLegacySshRsa?: boolean;
+                allowLegacySshRsa: boolean;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             };
             compressionMode: 'off' | 'auto' | 'max' | null;
@@ -4558,14 +4558,14 @@ export type GetScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'r2';
@@ -4578,14 +4578,14 @@ export type GetScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'local';
@@ -4595,14 +4595,14 @@ export type GetScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'gcs';
@@ -4614,14 +4614,14 @@ export type GetScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'azure';
@@ -4634,14 +4634,14 @@ export type GetScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rclone';
@@ -4652,14 +4652,14 @@ export type GetScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rest';
@@ -4672,38 +4672,38 @@ export type GetScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'sftp';
                 host: string;
-                port?: string | number;
+                port: number;
                 user: string;
                 path: string;
                 privateKey: string;
-                skipHostKeyCheck?: boolean;
+                skipHostKeyCheck: boolean;
                 knownHosts?: string;
-                allowLegacySshRsa?: boolean;
+                allowLegacySshRsa: boolean;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             };
             compressionMode: 'off' | 'auto' | 'max' | null;
@@ -4788,14 +4788,14 @@ export type UpdateScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'r2';
@@ -4808,14 +4808,14 @@ export type UpdateScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'local';
@@ -4825,14 +4825,14 @@ export type UpdateScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'gcs';
@@ -4844,14 +4844,14 @@ export type UpdateScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'azure';
@@ -4864,14 +4864,14 @@ export type UpdateScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rclone';
@@ -4882,14 +4882,14 @@ export type UpdateScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'rest';
@@ -4902,38 +4902,38 @@ export type UpdateScheduleMirrorsResponses = {
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             } | {
                 backend: 'sftp';
                 host: string;
-                port?: string | number;
+                port: number;
                 user: string;
                 path: string;
                 privateKey: string;
-                skipHostKeyCheck?: boolean;
+                skipHostKeyCheck: boolean;
                 knownHosts?: string;
-                allowLegacySshRsa?: boolean;
+                allowLegacySshRsa: boolean;
                 isExistingRepository?: boolean;
                 customPassword?: string;
                 cacert?: string;
                 insecureTls?: boolean;
                 uploadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
                 downloadLimit?: {
-                    enabled?: boolean;
-                    value?: number;
-                    unit?: 'Kbps' | 'Mbps' | 'Gbps';
+                    enabled: boolean;
+                    value: number;
+                    unit: 'Kbps' | 'Mbps' | 'Gbps';
                 };
             };
             compressionMode: 'off' | 'auto' | 'max' | null;
@@ -4982,7 +4982,7 @@ export type StartMirrorStatusResponses = {
 export type StartMirrorStatusResponse = StartMirrorStatusResponses[keyof StartMirrorStatusResponses];
 
 export type SyncMirrorData = {
-    body: {
+    body?: {
         snapshotIds?: Array<string>;
     };
     path: {
@@ -5443,7 +5443,7 @@ export type GetNotificationDestinationResponses = {
 export type GetNotificationDestinationResponse = GetNotificationDestinationResponses[keyof GetNotificationDestinationResponses];
 
 export type UpdateNotificationDestinationData = {
-    body: {
+    body?: {
         name?: string;
         enabled?: boolean;
         config?: {
@@ -6011,26 +6011,26 @@ export type ListTasksResponses = {
         progress: {
             kind: 'backup';
             progress: {
-                seconds_elapsed?: number;
-                seconds_remaining?: number;
-                percent_done?: number;
-                total_files?: number;
-                files_done?: number;
-                total_bytes?: number;
-                bytes_done?: number;
-                current_files?: Array<string>;
+                seconds_elapsed: number;
+                seconds_remaining: number;
+                percent_done: number;
+                total_files: number;
+                files_done: number;
+                total_bytes: number;
+                bytes_done: number;
+                current_files: Array<string>;
                 message_type: 'status';
             };
         } | {
             kind: 'restore';
             progress: {
                 message_type: 'status' | 'summary';
-                seconds_elapsed?: number;
-                percent_done?: number;
-                total_files?: number;
-                files_restored?: number;
-                total_bytes?: number;
-                bytes_restored?: number;
+                seconds_elapsed: number;
+                percent_done: number;
+                total_files: number;
+                files_restored: number;
+                total_bytes: number;
+                bytes_restored: number;
             };
         } | {
             kind: 'mirrorSync';
@@ -6064,7 +6064,7 @@ export type ListTasksResponses = {
                 message_type: 'summary';
                 total_files?: number;
                 files_restored: number;
-                files_skipped?: number;
+                files_skipped: number;
                 total_bytes?: number;
                 bytes_restored?: number;
                 bytes_skipped?: number;
@@ -6208,26 +6208,26 @@ export type StreamTasksEventsResponses = {
         progress: {
             kind: 'backup';
             progress: {
-                seconds_elapsed?: number;
-                seconds_remaining?: number;
-                percent_done?: number;
-                total_files?: number;
-                files_done?: number;
-                total_bytes?: number;
-                bytes_done?: number;
-                current_files?: Array<string>;
+                seconds_elapsed: number;
+                seconds_remaining: number;
+                percent_done: number;
+                total_files: number;
+                files_done: number;
+                total_bytes: number;
+                bytes_done: number;
+                current_files: Array<string>;
                 message_type: 'status';
             };
         } | {
             kind: 'restore';
             progress: {
                 message_type: 'status' | 'summary';
-                seconds_elapsed?: number;
-                percent_done?: number;
-                total_files?: number;
-                files_restored?: number;
-                total_bytes?: number;
-                bytes_restored?: number;
+                seconds_elapsed: number;
+                percent_done: number;
+                total_files: number;
+                files_restored: number;
+                total_bytes: number;
+                bytes_restored: number;
             };
         } | {
             kind: 'mirrorSync';
@@ -6261,7 +6261,7 @@ export type StreamTasksEventsResponses = {
                 message_type: 'summary';
                 total_files?: number;
                 files_restored: number;
-                files_skipped?: number;
+                files_skipped: number;
                 total_bytes?: number;
                 bytes_restored?: number;
                 bytes_skipped?: number;
@@ -6371,26 +6371,26 @@ export type StreamTasksEventsResponses = {
         progress: {
             kind: 'backup';
             progress: {
-                seconds_elapsed?: number;
-                seconds_remaining?: number;
-                percent_done?: number;
-                total_files?: number;
-                files_done?: number;
-                total_bytes?: number;
-                bytes_done?: number;
-                current_files?: Array<string>;
+                seconds_elapsed: number;
+                seconds_remaining: number;
+                percent_done: number;
+                total_files: number;
+                files_done: number;
+                total_bytes: number;
+                bytes_done: number;
+                current_files: Array<string>;
                 message_type: 'status';
             };
         } | {
             kind: 'restore';
             progress: {
                 message_type: 'status' | 'summary';
-                seconds_elapsed?: number;
-                percent_done?: number;
-                total_files?: number;
-                files_restored?: number;
-                total_bytes?: number;
-                bytes_restored?: number;
+                seconds_elapsed: number;
+                percent_done: number;
+                total_files: number;
+                files_restored: number;
+                total_bytes: number;
+                bytes_restored: number;
             };
         } | {
             kind: 'mirrorSync';
@@ -6424,7 +6424,7 @@ export type StreamTasksEventsResponses = {
                 message_type: 'summary';
                 total_files?: number;
                 files_restored: number;
-                files_skipped?: number;
+                files_skipped: number;
                 total_bytes?: number;
                 bytes_restored?: number;
                 bytes_skipped?: number;
@@ -6617,26 +6617,26 @@ export type StreamTaskEventsResponses = {
         progress: {
             kind: 'backup';
             progress: {
-                seconds_elapsed?: number;
-                seconds_remaining?: number;
-                percent_done?: number;
-                total_files?: number;
-                files_done?: number;
-                total_bytes?: number;
-                bytes_done?: number;
-                current_files?: Array<string>;
+                seconds_elapsed: number;
+                seconds_remaining: number;
+                percent_done: number;
+                total_files: number;
+                files_done: number;
+                total_bytes: number;
+                bytes_done: number;
+                current_files: Array<string>;
                 message_type: 'status';
             };
         } | {
             kind: 'restore';
             progress: {
                 message_type: 'status' | 'summary';
-                seconds_elapsed?: number;
-                percent_done?: number;
-                total_files?: number;
-                files_restored?: number;
-                total_bytes?: number;
-                bytes_restored?: number;
+                seconds_elapsed: number;
+                percent_done: number;
+                total_files: number;
+                files_restored: number;
+                total_bytes: number;
+                bytes_restored: number;
             };
         } | {
             kind: 'mirrorSync';
@@ -6670,7 +6670,7 @@ export type StreamTaskEventsResponses = {
                 message_type: 'summary';
                 total_files?: number;
                 files_restored: number;
-                files_skipped?: number;
+                files_skipped: number;
                 total_bytes?: number;
                 bytes_restored?: number;
                 bytes_skipped?: number;
@@ -6798,26 +6798,26 @@ export type GetTaskResponses = {
         progress: {
             kind: 'backup';
             progress: {
-                seconds_elapsed?: number;
-                seconds_remaining?: number;
-                percent_done?: number;
-                total_files?: number;
-                files_done?: number;
-                total_bytes?: number;
-                bytes_done?: number;
-                current_files?: Array<string>;
+                seconds_elapsed: number;
+                seconds_remaining: number;
+                percent_done: number;
+                total_files: number;
+                files_done: number;
+                total_bytes: number;
+                bytes_done: number;
+                current_files: Array<string>;
                 message_type: 'status';
             };
         } | {
             kind: 'restore';
             progress: {
                 message_type: 'status' | 'summary';
-                seconds_elapsed?: number;
-                percent_done?: number;
-                total_files?: number;
-                files_restored?: number;
-                total_bytes?: number;
-                bytes_restored?: number;
+                seconds_elapsed: number;
+                percent_done: number;
+                total_files: number;
+                files_restored: number;
+                total_bytes: number;
+                bytes_restored: number;
             };
         } | {
             kind: 'mirrorSync';
@@ -6851,7 +6851,7 @@ export type GetTaskResponses = {
                 message_type: 'summary';
                 total_files?: number;
                 files_restored: number;
-                files_skipped?: number;
+                files_skipped: number;
                 total_bytes?: number;
                 bytes_restored?: number;
                 bytes_skipped?: number;
@@ -6982,6 +6982,9 @@ export type PostApiV1AgentsEnrollErrors = {
 export type PostApiV1AgentsEnrollError = PostApiV1AgentsEnrollErrors[keyof PostApiV1AgentsEnrollErrors];
 
 export type PostApiV1AgentsEnrollResponses = {
+    /**
+     * Successful response
+     */
     200: unknown;
 };
 
@@ -7089,6 +7092,7 @@ export type MaintainRemoteAgentResponse = MaintainRemoteAgentResponses[keyof Mai
 export type RequestAgentUpdateData = {
     body: {
         targetTag: string;
+        credentialVersion: number;
     };
     path: {
         agentId: string;
@@ -7183,9 +7187,30 @@ export type DeleteRemoteAgentResponse = DeleteRemoteAgentResponses[keyof DeleteR
 export type ListAgentsData = {
     body?: never;
     path?: never;
-    query?: never;
+    query?: {
+        expectedOrganizationId?: string;
+    };
     url: '/api/v1/agents';
 };
+
+export type ListAgentsErrors = {
+    /**
+     * Validation Error
+     */
+    400: {
+        success: false;
+        error: Array<unknown>;
+        data: unknown;
+    };
+    /**
+     * The active organization changed
+     */
+    409: {
+        message: string;
+    };
+};
+
+export type ListAgentsError = ListAgentsErrors[keyof ListAgentsErrors];
 
 export type ListAgentsResponses = {
     /**

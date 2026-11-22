@@ -19,7 +19,10 @@ const agentUpdateSchema = z.object({
 		.nullable(),
 });
 
-export const requestAgentUpdateBody = z.strictObject({ targetTag: z.string().min(1).max(AGENT_UPDATE_TAG_MAX_LENGTH) });
+export const requestAgentUpdateBody = z.strictObject({
+	targetTag: z.string().min(1).max(AGENT_UPDATE_TAG_MAX_LENGTH),
+	credentialVersion: z.int().nonnegative(),
+});
 
 export const publicAgentSchema = z.object({
 	id: z.string(),
@@ -58,10 +61,19 @@ const response = (schema: z.ZodType, description: string) => ({
 	content: { "application/json": { schema: resolver(schema) } },
 });
 
+export const listAgentsQuery = z.object({
+	expectedOrganizationId: z.string().min(1).optional(),
+});
+
+const errorSchema = z.object({ message: z.string() });
+
 export const listAgentsDto = describeRoute({
 	operationId: "listAgents",
 	tags: ["Agents"],
-	responses: { 200: response(z.array(publicAgentSchema), "Agents") },
+	responses: {
+		200: response(z.array(publicAgentSchema), "Agents"),
+		409: response(errorSchema, "The active organization changed"),
+	},
 });
 
 export const createAgentDto = describeRoute({
@@ -87,8 +99,6 @@ export const deleteAgentDto = describeRoute({
 	tags: ["Agents"],
 	responses: { 200: response(z.object({ success: z.boolean() }), "Remote machine deleted") },
 });
-
-const errorSchema = z.object({ message: z.string() });
 
 export const requestAgentUpdateDto = describeRoute({
 	operationId: "requestAgentUpdate",

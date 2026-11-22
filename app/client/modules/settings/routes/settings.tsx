@@ -61,6 +61,29 @@ function OrganizationDetailsSection() {
 	);
 }
 
+function MachinesSettingsCard() {
+	const { activeOrganization } = useOrganizationContext();
+	const permissions = usePermissions();
+	if (permissions.activeOrganizationId !== activeOrganization.id) return null;
+
+	return (
+		<Card id="machines" className="p-0 gap-0 scroll-mt-24">
+			<div className="border-b border-border/50 bg-card-header p-6">
+				<CardTitle className="flex items-center gap-2 text-balance">
+					<MonitorCog className="size-5" />
+					Machines
+				</CardTitle>
+				<CardDescription className="mt-1.5 text-pretty">
+					Connect and manage remote machines for this organization
+				</CardDescription>
+			</div>
+			<CardContent className="min-w-0 p-6">
+				<MachinesSection organizationId={activeOrganization.id} />
+			</CardContent>
+		</Card>
+	);
+}
+
 export function SettingsPage({
 	activeScope,
 	appContext,
@@ -255,22 +278,7 @@ export function SettingsPage({
 			{activeScope === "organization" && (
 				<div className="space-y-4">
 					{showOrganizationDetails && <OrganizationDetailsSection />}
-					{showMachines && (
-						<Card id="machines" className="p-0 gap-0 scroll-mt-24">
-							<div className="border-b border-border/50 bg-card-header p-6">
-								<CardTitle className="flex items-center gap-2 text-balance">
-									<MonitorCog className="size-5" />
-									Machines
-								</CardTitle>
-								<CardDescription className="mt-1.5 text-pretty">
-									Connect and manage remote machines for this organization
-								</CardDescription>
-							</div>
-							<CardContent className="min-w-0 p-6">
-								<MachinesSection />
-							</CardContent>
-						</Card>
-					)}
+					{showMachines && <MachinesSettingsCard />}
 					{showOrganizationMembers && (
 						<Card className="p-0 gap-0">
 							<div className="border-b border-border/50 bg-card-header p-6">

@@ -26,7 +26,10 @@ const backupScheduleSchema = z.object({
 	compressionMode: z.enum(COMPRESSION_MODES).nullable(),
 	backupWebhooks: backupWebhooksSchema.nullable(),
 	maxRetries: z.number(),
-	retryDelay: z.number().transform((ms) => Math.round(ms / 60000)),
+	retryDelay: z
+		.number()
+		.transform((ms) => Math.round(ms / 60000))
+		.pipe(z.number()),
 	lastBackupAt: z.number().nullable(),
 	lastBackupStatus: z.enum(["success", "error", "in_progress", "warning"]).nullable(),
 	lastBackupError: z.string().nullable(),

@@ -296,6 +296,8 @@ export type {
 	ImportConfigResponse,
 	ImportConfigResponses,
 	ListAgentsData,
+	ListAgentsError,
+	ListAgentsErrors,
 	ListAgentsResponse,
 	ListAgentsResponses,
 	ListBackupSchedulesData,
