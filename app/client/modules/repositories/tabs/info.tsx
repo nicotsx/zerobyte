@@ -1,4 +1,5 @@
 import { Archive, Clock, FolderOpen, HardDrive, Lock, Settings, Shield } from "lucide-react";
+import { TimeAgo } from "~/client/components/time-ago";
 import { Card, CardContent, CardTitle } from "~/client/components/ui/card";
 import type { Repository } from "~/client/lib/types";
 import type { GetRepositoryStatsResponse } from "~/client/api-client/types.gen";
@@ -40,7 +41,7 @@ function ConfigRow({ icon, label, value, mono, valueClassName }: ConfigRowProps)
 
 export const RepositoryInfoTabContent = ({ repository, initialStats, isDoctorRunning = false }: Props) => {
 	const effectiveLocalPath = getEffectiveLocalPath(repository);
-	const { formatDateTime, formatTimeAgo } = useTimeFormat();
+	const { formatDateTime } = useTimeFormat();
 
 	const config = repository.config as RepositoryConfig;
 	const hasLocalPath = Boolean(effectiveLocalPath);
@@ -79,7 +80,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats, isDoctorRun
 							<div className="text-sm font-medium text-muted-foreground">Last Checked</div>
 							<p className="text-sm flex items-center gap-1.5">
 								<Clock className="h-3 w-3 text-muted-foreground" />
-								{formatTimeAgo(repository.lastChecked)}
+								<TimeAgo date={repository.lastChecked} />
 							</p>
 						</div>
 						{hasLocalPath && (
