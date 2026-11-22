@@ -9,6 +9,7 @@ import { fromPartial } from "@total-typescript/shoehorn";
 import { createControllerMessage, parseAgentMessage } from "@zerobyte/contracts/agent-protocol";
 import * as resticServer from "@zerobyte/core/restic/server";
 import { CONTROLLER_SILENCE_TIMEOUT_MS, createControllerSession } from "../controller-session";
+import { createUpdateJobs } from "../update-jobs";
 import { createTrustedRootRegistry } from "../trusted-roots";
 import { createRunPayload } from "../commands/__tests__/backup-run.harness";
 
@@ -529,5 +530,173 @@ test("keeps a controller connection that keeps sending heartbeats", async () => 
 		expect(terminate).not.toHaveBeenCalled();
 	} finally {
 		session.close();
+	}
+});
+
+test("rejects a retry after reconnect until the previous post-hook finishes", async () => {
+	const jobs = createUpdateJobs();
+	const finishHook = Promise.withResolvers<void>();
+	const hookStarted = vi.fn();
+	const webhook = Bun.serve({
+		hostname: "127.0.0.1",
+		port: 0,
+		async fetch(request) {
+			await request.text();
+			hookStarted();
+			await finishHook.promise;
+			return new Response(null, { status: 204 });
+		},
+	});
+	const trustedRoots = createTrustedRootRegistry({
+		roots: [{ id: "data", label: "Data", path: os.tmpdir(), allowBackup: true }],
+	});
+	const send = vi.fn<(message: string) => void>();
+	const connect = () => createControllerSession(fromPartial({ send }), { trustedRoots, updateJobs: jobs });
+	const dispatch = (session: ReturnType<typeof connect>, jobId: string) =>
+		session.onMessage(
+			createControllerMessage(
+				"backup.run",
+				createRunPayload({
+					jobId,
+					source: { rootId: "data", relativePath: "" },
+					webhooks: { pre: null, post: { url: new URL("/post", webhook.url).href } },
+					webhookAllowedOrigins: [webhook.url.origin],
+				}),
+			),
+		);
+	const messages = () => send.mock.calls.map(([wire]) => JSON.parse(wire));
+
+	const restic = vi
+		.spyOn(resticServer, "createRestic")
+		.mockReturnValue(
+			fromPartial({ backup: () => Effect.succeed({ exitCode: 0, result: null, warningDetails: null }) }),
+		);
+	const first = connect();
+	const reconnect = connect();
+
+	try {
+		dispatch(first, "original");
+		await vi.waitFor(() => expect(hookStarted).toHaveBeenCalledOnce());
+		first.close();
+
+		dispatch(reconnect, "too-early");
+		await vi.waitFor(() =>
+			expect(messages()).toContainEqual(
+				expect.objectContaining({
+					type: "backup.failed",
+					payload: expect.objectContaining({
+						jobId: "too-early",
+						error: expect.stringContaining("still finishing"),
+					}),
+				}),
+			),
+		);
+		expect(restic).toHaveBeenCalledOnce();
+
+		finishHook.resolve();
+		await vi.waitFor(() => expect(jobs.isIdle()).toBe(true));
+		dispatch(reconnect, "retry");
+		await vi.waitFor(() =>
+			expect(messages()).toContainEqual(
+				expect.objectContaining({
+					type: "backup.completed",
+					payload: expect.objectContaining({ jobId: "retry" }),
+				}),
+			),
+		);
+		expect(restic).toHaveBeenCalledTimes(2);
+	} finally {
+		finishHook.resolve();
+		first.close();
+		reconnect.close();
+		await Effect.runPromise(jobs.close);
+		await webhook.stop(true);
+	}
+});
+
+test("admits jobs while staging and rejects backup dispatch while committing", async () => {
+	const jobs = createUpdateJobs();
+	const outboundMessages: string[] = [];
+	const trustedRoots = createTrustedRootRegistry({
+		roots: [{ id: "data", label: "Data", path: os.tmpdir(), allowBackup: true }],
+	});
+	const session = createControllerSession(
+		fromPartial({ send: (message: string) => outboundMessages.push(message) }),
+		{ trustedRoots, updateJobs: jobs },
+	);
+
+	const parsedMessages = () =>
+		outboundMessages.flatMap((message) => {
+			const parsed = parseAgentMessage(message);
+			return parsed?.success ? [parsed.data] : [];
+		});
+
+	let enteredRestic = false;
+	let aborted = false;
+	let finishCleanup: (() => void) | undefined;
+	const backup: ReturnType<typeof resticServer.createRestic>["backup"] = (_config, _source, options) =>
+		Effect.callback((resume) => {
+			enteredRestic = true;
+			options.signal?.addEventListener(
+				"abort",
+				() => {
+					aborted = true;
+					finishCleanup = () => resume(Effect.succeed({ exitCode: 0, result: null, warningDetails: null }));
+				},
+				{ once: true },
+			);
+		});
+	const restic = vi.spyOn(resticServer, "createRestic").mockReturnValue(fromPartial({ backup }));
+	const dispatch = (jobId: string) =>
+		session.onMessage(
+			createControllerMessage(
+				"backup.run",
+				createRunPayload({
+					jobId,
+					source: { rootId: "data", relativePath: "" },
+				}),
+			),
+		);
+
+	try {
+		session.onOpen();
+		dispatch("in-progress");
+		await vi.waitFor(() => expect(enteredRestic).toBe(true));
+		expect(jobs.beginCommit()).toBe(false);
+		expect(parsedMessages()).toContainEqual(
+			expect.objectContaining({
+				type: "agent.ready",
+				payload: expect.objectContaining({
+					capabilities: expect.objectContaining({ selfUpdate: "systemd" }),
+				}),
+			}),
+		);
+	} finally {
+		session.close();
+	}
+
+	await vi.waitFor(() => expect(aborted).toBe(true));
+	expect(jobs.beginCommit()).toBe(false);
+	finishCleanup?.();
+	await vi.waitFor(() => expect(jobs.isIdle()).toBe(true));
+	expect(jobs.beginCommit()).toBe(true);
+
+	const reconnect = createControllerSession(
+		fromPartial({ send: (message: string) => outboundMessages.push(message) }),
+		{ trustedRoots, updateJobs: jobs },
+	);
+	try {
+		reconnect.onMessage(createControllerMessage("backup.run", createRunPayload({ jobId: "too-late" })));
+		await vi.waitFor(() =>
+			expect(parsedMessages()).toContainEqual(
+				expect.objectContaining({
+					type: "backup.failed",
+					payload: expect.objectContaining({ jobId: "too-late", error: "Agent is restarting for an update" }),
+				}),
+			),
+		);
+		expect(restic).toHaveBeenCalledTimes(1);
+	} finally {
+		reconnect.close();
 	}
 });

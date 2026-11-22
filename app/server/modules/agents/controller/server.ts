@@ -9,6 +9,7 @@ import type {
 	RestoreCancelPayload,
 	RestoreRunPayload,
 } from "@zerobyte/contracts/agent-protocol";
+import { LOCAL_AGENT_ID } from "../constants";
 import { agentsService } from "../agents.service";
 import {
 	createAgentConnection,
@@ -205,7 +206,9 @@ export const createAgentController = (onEvent: (event: AgentManagerEvent) => voi
 		sendBackup: (agentId: string, payload: BackupRunPayload) =>
 			dispatch(
 				agentId,
-				(connection) => connection.canBackup(payload.organizationId),
+				(connection) =>
+					connection.canBackup(payload.organizationId) &&
+					(agentId === LOCAL_AGENT_ID || !agentsService.isBackupDispatchFenced(agentId)),
 				() => ({ type: "backup.run", payload }),
 			),
 

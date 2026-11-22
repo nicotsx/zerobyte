@@ -6,19 +6,18 @@ import { enrollMachine, reconnectMachine } from "./enrollment";
 import * as fs from "./fs";
 import { Host } from "./host";
 import { checkRestic } from "./restic/prerequisites";
+import { SERVICE_NAME, SERVICE_PATH, type ServicePaths } from "./service-paths";
+import {
+	currentAgentVersion,
+	assertTrustedUpdateDirectory,
+	SYSTEMD_UPDATE_ENV,
+	SYSTEMD_UPDATE_EXIT_CODE,
+	SYSTEMD_STARTUP_TIMEOUT_MS,
+	systemdRecoveryScript,
+	updateDirectory,
+} from "./systemd-update";
 
-export const SERVICE_PATH = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
-const SERVICE_NAME = "zerobyte-agent.service";
-
-export type ServicePaths = { installDir: string; stateDir: string; serviceDir: string };
-
-export const defaultServicePaths: ServicePaths = {
-	installDir: "/usr/local/bin",
-	stateDir: "/var/lib/zerobyte-agent",
-	serviceDir: "/etc/systemd/system",
-};
-
-export const SERVICE_CONFIG = join(defaultServicePaths.stateDir, "agent.json");
+export { defaultServicePaths, SERVICE_CONFIG, SERVICE_PATH } from "./service-paths";
 
 export class InstallError extends Data.TaggedError("InstallError")<{ message: string; cause?: unknown }> {}
 
@@ -30,13 +29,24 @@ export type InstallOptions = {
 	paths: ServicePaths;
 };
 
-const serviceUnit = (binary: string, config: string, stateDir: string) => `[Unit]
+const serviceUnit = (binary: string, config: string, stateDir: string, recovery?: string) => `[Unit]
 Description=Zerobyte backup agent
 Wants=network-online.target
 After=network-online.target
 
 [Service]
-Type=exec
+${
+	recovery
+		? `Type=notify
+NotifyAccess=all
+TimeoutStartSec=${SYSTEMD_STARTUP_TIMEOUT_MS / 1000}
+SuccessExitStatus=${SYSTEMD_UPDATE_EXIT_CODE}
+RestartForceExitStatus=${SYSTEMD_UPDATE_EXIT_CODE}
+Environment=${SYSTEMD_UPDATE_ENV}=1
+ExecStartPre=${recovery} ${binary} start
+ExecStopPost=${recovery} ${binary} stop`
+		: "Type=exec"
+}
 ExecStart=${binary} run --config ${config}
 WorkingDirectory=${stateDir}
 Environment=HOME=${stateDir}
@@ -57,7 +67,7 @@ WantedBy=multi-user.target
  * Everything that can fail without side effects (prerequisites, staging, verifying the new executable) runs
  * before the connection code is exchanged, so a failed attempt never consumes the single-use code.
  */
-export const installSystemService = (options: InstallOptions) =>
+export const installSystemService = (options: InstallOptions, checkUpdateDirectory = assertTrustedUpdateDirectory) =>
 	Effect.gen(function* () {
 		const host = yield* Host;
 		const { paths, controller, requestCode, roots } = options;
@@ -65,6 +75,8 @@ export const installSystemService = (options: InstallOptions) =>
 		const config = join(paths.stateDir, "agent.json");
 		const binary = join(paths.installDir, "zerobyte-agent");
 		const unit = join(paths.serviceDir, SERVICE_NAME);
+		const directory = updateDirectory(paths.installDir);
+		const recovery = currentAgentVersion() ? join(directory, "recover") : undefined;
 
 		yield* host
 			.output("systemctl", ["show-environment"])
@@ -96,12 +108,24 @@ export const installSystemService = (options: InstallOptions) =>
 		yield* fs.makeDirectory(paths.installDir);
 		yield* fs.makeDirectory(paths.serviceDir);
 
+		if (recovery) {
+			yield* host.output("systemd-notify", ["--version"]);
+			yield* fs.makeDirectory(directory, 0o700);
+			yield* Effect.try({
+				try: () => checkUpdateDirectory(paths.installDir, directory),
+				catch: (cause) => new InstallError({ message: "The agent update directory is unsafe", cause }),
+			});
+			yield* fs.changeMode(directory, 0o700);
+		}
+
 		const stagedBinary = yield* fs.stagingPath(binary);
 		const stagedUnit = yield* fs.stagingPath(unit);
+		const stagedRecovery = recovery ? yield* fs.stagingPath(recovery) : undefined;
 
 		yield* fs.copy(options.sourceBinary, stagedBinary);
 		yield* fs.changeMode(stagedBinary, 0o755);
-		yield* fs.writeText(stagedUnit, serviceUnit(binary, config, paths.stateDir), 0o644);
+		yield* fs.writeText(stagedUnit, serviceUnit(binary, config, paths.stateDir, recovery), 0o644);
+		if (stagedRecovery) yield* fs.writeText(stagedRecovery, systemdRecoveryScript, 0o700);
 		yield* host.output(stagedBinary, ["--version"]);
 
 		let connectionCode: string | undefined;
@@ -127,6 +151,11 @@ export const installSystemService = (options: InstallOptions) =>
 		}
 
 		yield* Effect.gen(function* () {
+			if (recovery && stagedRecovery) {
+				if (yield* fs.exists(unit)) yield* host.output("systemctl", ["stop", SERVICE_NAME]);
+				yield* fs.move(stagedRecovery, recovery);
+				yield* host.output(recovery, [binary, "install"]);
+			}
 			yield* fs.move(stagedBinary, binary);
 			yield* fs.move(stagedUnit, unit);
 			yield* host.output("systemctl", ["daemon-reload"]);

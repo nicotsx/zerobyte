@@ -16,6 +16,9 @@ export const agentMaintenanceRequestSchema = z.discriminatedUnion("action", [
 	z.strictObject({ action: z.literal("poll") }),
 	z.strictObject({ action: z.literal("start"), ...attempt }),
 	z.strictObject({ action: z.literal("fail"), ...attempt }),
+	z.strictObject({ action: z.literal("failPreparation"), ...attempt }),
+	z.strictObject({ action: z.literal("confirm"), ...attempt }),
+	z.strictObject({ action: z.literal("accept"), ...attempt }),
 ]);
 
 export const agentMaintenanceResponseSchema = z.strictObject({

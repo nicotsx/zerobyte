@@ -1,8 +1,9 @@
 import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { installSystemService, SERVICE_PATH, type InstallOptions } from "../system-service";
+import { assertTrustedUpdateDirectory, updateDirectory } from "../systemd-update";
 import { commandFailure, createTestHost, runTest } from "./effect-test-support";
 
 const temporaryDirectories: string[] = [];
@@ -17,7 +18,10 @@ const savedIdentity = {
 	controllerSessionId: "original-session",
 };
 
+beforeEach(() => vi.stubEnv("ZEROBYTE_AGENT_VERSION", "v2.0.0"));
+
 afterEach(async () => {
+	vi.unstubAllEnvs();
 	vi.unstubAllGlobals();
 	await Promise.all(
 		temporaryDirectories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })),
@@ -48,10 +52,11 @@ const setup = async () => {
 	vi.stubGlobal("fetch", exchange);
 
 	const host = createTestHost();
+	const verifyFixtureDirectory = vi.fn();
 	const install = (options: Partial<InstallOptions> = {}, testHost = host) =>
-		runTest(installSystemService({ roots: [], sourceBinary, paths, ...options }), testHost);
+		runTest(installSystemService({ roots: [], sourceBinary, paths, ...options }, verifyFixtureDirectory), testHost);
 
-	return { folder, paths, files, exchange, host, install };
+	return { folder, paths, files, exchange, host, install, verifyFixtureDirectory };
 };
 
 type Fixture = Awaited<ReturnType<typeof setup>>;
@@ -61,6 +66,10 @@ const withExistingInstallation = async ({ paths, files }: Fixture) => {
 	await writeFile(files.binary, "native-agent-v1", { mode: 0o755 });
 	await writeFile(files.unit, "previous-unit-definition", { mode: 0o644 });
 	await writeFile(files.config, JSON.stringify(savedIdentity), { mode: 0o600 });
+
+	const directory = updateDirectory(paths.installDir);
+	await mkdir(directory, { mode: 0o700 });
+	await writeFile(join(directory, "recover"), "previous-recovery-hook", { mode: 0o700 });
 };
 
 const readConfig = async ({ files }: Fixture) => JSON.parse(await readFile(files.config, "utf8"));
@@ -71,8 +80,11 @@ const expectUntouched = async (fixture: Fixture) => {
 	expect(await readFile(fixture.files.unit, "utf8")).toBe("previous-unit-definition");
 };
 
-const expectNoStagingLeftovers = async ({ paths }: Fixture) => {
-	expect(await readdir(paths.installDir)).toEqual(["zerobyte-agent"]);
+const expectNoStagingLeftovers = async ({ paths }: Fixture, managed = true) => {
+	const expected = ["zerobyte-agent"];
+	if (managed) expected.unshift(".zerobyte-agent-update");
+	expect((await readdir(paths.installDir)).sort()).toEqual(expected);
+	if (managed) expect(await readdir(updateDirectory(paths.installDir))).toEqual(["recover"]);
 	expect(await readdir(paths.serviceDir)).toEqual(["zerobyte-agent.service"]);
 	expect(await readdir(paths.stateDir)).toEqual(["agent.json"]);
 };
@@ -86,9 +98,14 @@ const failOn = (fixture: Fixture, matches: (command: string, args: ReadonlyArray
 	return host;
 };
 
-test.each([false, true])(
-	"initial installation enrolls and starts the service (with folders: %s)",
-	async (withFolders) => {
+test.each([
+	{ withFolders: false, managed: true },
+	{ withFolders: true, managed: true },
+	{ withFolders: false, managed: false },
+])(
+	"initial installation enrolls and starts the service (with folders: $withFolders, managed: $managed)",
+	async ({ withFolders, managed }) => {
+		if (!managed) vi.stubEnv("ZEROBYTE_AGENT_VERSION", "dev");
 		const fixture = await setup();
 		await fixture.install({
 			controller: new URL("https://controller.example"),
@@ -110,9 +127,17 @@ test.each([false, true])(
 		expect(unit).toContain(`ExecStart=${fixture.files.binary} run --config ${fixture.files.config}`);
 		expect(unit).toContain(`Environment=PATH=${SERVICE_PATH}`);
 		expect(unit).toContain("Restart=on-failure");
+		if (managed) {
+			const directory = updateDirectory(fixture.paths.installDir);
+			expect(unit).toContain("Type=notify");
+			expect(unit).toContain(`ExecStopPost=${join(directory, "recover")} ${fixture.files.binary} stop`);
+			expect(fixture.verifyFixtureDirectory).toHaveBeenCalledWith(fixture.paths.installDir, directory);
+		} else {
+			expect(unit).toContain("Type=exec");
+		}
 		expect(unit).not.toContain("RestartPreventExitStatus");
 		expect(fixture.host.output).toHaveBeenCalledWith("systemctl", ["restart", "zerobyte-agent.service"]);
-		await expectNoStagingLeftovers(fixture);
+		await expectNoStagingLeftovers(fixture, managed);
 	},
 );
 
@@ -277,3 +302,16 @@ test.each(["daemon-reload", "enable", "restart"])(
 		await expectNoStagingLeftovers(fixture);
 	},
 );
+
+test("release installation rejects an untrusted path before exchanging a code", async () => {
+	const fixture = await setup();
+	fixture.verifyFixtureDirectory.mockImplementation(assertTrustedUpdateDirectory);
+
+	await expect(
+		fixture.install({
+			controller: new URL("https://controller.example"),
+			requestCode: async () => machineToken("existing-machine", 2),
+		}),
+	).rejects.toThrow("The agent update directory is unsafe");
+	expect(fixture.exchange).not.toHaveBeenCalled();
+});

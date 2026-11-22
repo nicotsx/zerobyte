@@ -6996,6 +6996,18 @@ export type MaintainRemoteAgentData = {
         action: 'fail';
         requestId: string;
         attemptId: string;
+    } | {
+        action: 'failPreparation';
+        requestId: string;
+        attemptId: string;
+    } | {
+        action: 'confirm';
+        requestId: string;
+        attemptId: string;
+    } | {
+        action: 'accept';
+        requestId: string;
+        attemptId: string;
     };
     path?: never;
     query?: never;
@@ -7018,9 +7030,15 @@ export type MaintainRemoteAgentErrors = {
         message: string;
     };
     /**
-     * The update request or attempt is stale. Poll for the current request.
+     * The update attempt is stale or awaiting controller readiness.
      */
     409: {
+        message: string;
+    };
+    /**
+     * The update attempt has expired, been replaced, or finalized.
+     */
+    410: {
         message: string;
     };
     /**

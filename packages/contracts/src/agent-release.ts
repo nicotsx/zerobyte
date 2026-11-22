@@ -21,8 +21,8 @@ export {
 	AGENT_RELEASE_EXECUTABLES,
 	AGENT_RELEASE_PREDICATE_TYPE,
 	agentReleaseAssetUrl,
-	fetchAgentReleaseAsset,
 	agentReleaseManifestSchema,
+	fetchAgentReleaseAsset,
 	type AgentReleaseManifest,
 } from "./agent-release-manifest";
 
