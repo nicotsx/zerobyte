@@ -12,7 +12,7 @@ import { VolumeHealthCheckJob } from "~/server/jobs/healthchecks";
 import { VolumeAutoRemountJob } from "~/server/jobs/auto-remount";
 import { findVolume } from "../volume-queries";
 import { getVolumePath } from "../helpers";
-import { BadRequestError } from "http-errors-enhanced";
+import { BadRequestError, ConflictError } from "http-errors-enhanced";
 
 vi.mock("node:fs/promises", async (original) => ({ ...(await original<typeof fs>()) }));
 vi.mock("node:os", async (original) => ({ ...(await original<typeof os>()) }));
@@ -96,6 +96,71 @@ test.each(["stored", "replacement"] as const)(
 		expect(await db.query.volumesTable.findFirst({ where: { id: volume.id } })).toEqual(volume);
 	},
 );
+
+test("create rejects a name already used by another source in the organization", async () => {
+	const { organizationId } = await createTestSession();
+	const existing = await createTestVolume({ organizationId, name: "Photos" });
+
+	await withContext({ organizationId }, async () => {
+		await expect(
+			volumeService.createVolume({
+				sourceKind: "managed",
+				name: "  Photos  ",
+				config: { backend: "directory", path: os.tmpdir() },
+			}),
+		).rejects.toThrow(new ConflictError("A source with this name already exists"));
+	});
+
+	expect(await db.query.volumesTable.findMany({ where: { organizationId } })).toEqual([existing]);
+});
+
+test("create accepts a name that is only used in another organization", async () => {
+	const other = await createTestSession();
+	await createTestVolume({ organizationId: other.organizationId, name: "Photos" });
+	const { organizationId } = await createTestSession();
+
+	const { volume } = await withContext({ organizationId }, () =>
+		volumeService.createVolume({
+			sourceKind: "managed",
+			name: "Photos",
+			config: { backend: "directory", path: os.tmpdir() },
+		}),
+	);
+
+	expect(volume).toMatchObject({ name: "Photos", organizationId });
+});
+
+test("update rejects a rename to another source's name without changing the volume", async () => {
+	const { organizationId } = await createTestSession();
+	await createTestVolume({ organizationId, name: "Photos" });
+	const volume = await createTestVolume({
+		organizationId,
+		name: "Documents",
+		config: { backend: "directory", path: os.tmpdir() },
+	});
+
+	await withContext({ organizationId }, async () => {
+		await expect(
+			volumeService.updateVolume(volume.shortId, {
+				name: "Photos",
+				config: { backend: "directory", path: join(os.tmpdir(), "other") },
+			}),
+		).rejects.toThrow(new ConflictError("A source with this name already exists"));
+	});
+
+	expect(await db.query.volumesTable.findFirst({ where: { id: volume.id } })).toEqual(volume);
+});
+
+test("update accepts a source keeping its own name", async () => {
+	const { organizationId } = await createTestSession();
+	const volume = await createTestVolume({ organizationId, name: "Documents", autoRemount: true });
+
+	const { volume: updated } = await withContext({ organizationId }, () =>
+		volumeService.updateVolume(volume.shortId, { name: "Documents", autoRemount: false }),
+	);
+
+	expect(updated).toMatchObject({ name: "Documents", autoRemount: false });
+});
 
 test.each(["unmounted", "error", "mounted"] as const)(
 	"controller recovers an accessible directory saved as %s without an agent",
