@@ -164,3 +164,25 @@ test("close during startup waits until scheduled work has been activated before 
 		mocks.stopScheduler.mock.invocationCallOrder[0]!,
 	);
 });
+
+test("a hanging shutdown settles via the timeout instead of blocking the process exit", async () => {
+	vi.useFakeTimers();
+	try {
+		mocks.stopScheduler.mockReturnValueOnce(new Promise(() => {}));
+
+		const hook = vi.fn();
+		const { default: bootstrapPlugin, SHUTDOWN_TIMEOUT_MS } = await import("../../../../nitro/plugins/bootstrap");
+
+		await bootstrapPlugin(fromPartial({ hooks: { hook } }));
+
+		const close = hook.mock.calls.find(([name]) => name === "close")?.[1] as () => Promise<void>;
+
+		const closing = close();
+		const assertion = expect(closing).rejects.toThrow(`Shutdown timed out after ${SHUTDOWN_TIMEOUT_MS}ms`);
+
+		await vi.advanceTimersByTimeAsync(SHUTDOWN_TIMEOUT_MS);
+		await assertion;
+	} finally {
+		vi.useRealTimers();
+	}
+});
