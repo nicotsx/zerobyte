@@ -61,6 +61,7 @@ const executeRetention = async (
 		const retentionPolicy = getTaskRetentionPolicy(params.organizationId, taskId);
 		await applyRetentionPolicy({
 			repository: params.repository,
+			agentId: params.repository.agentId,
 			retentionPolicy,
 			tag: params.scheduleShortId,
 			organizationId: params.organizationId,

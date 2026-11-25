@@ -1,6 +1,6 @@
 import { logger } from "@zerobyte/core/node";
 import { repoMutex } from "../../../core/repository-mutex";
-import { restic } from "../../../core/restic";
+import { resticForAgent } from "../repository-restic";
 import type { Repository } from "../../../db/schema";
 import { cache, cacheKeys } from "../../../utils/cache";
 import { runEffectPromise, toMessage } from "../../../utils/errors";
@@ -27,7 +27,7 @@ const deleteSnapshots = async (context: DeleteSnapshotsTaskContext): Promise<Del
 
 	try {
 		await runEffectPromise(
-			restic.deleteSnapshots(context.repository.config, context.snapshotIds, {
+			resticForAgent(context.repository.agentId).deleteSnapshots(context.repository.config, context.snapshotIds, {
 				organizationId,
 			}),
 		);

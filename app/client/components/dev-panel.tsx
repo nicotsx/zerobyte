@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Label } from "./ui/label";
 import { Textarea } from "./ui/textarea";
 import { listRepositoriesOptions } from "~/client/api-client/@tanstack/react-query.gen";
+import { isAgentRepository } from "@zerobyte/contracts/backup-context";
 import { devPanelExec } from "~/client/api-client/sdk.gen";
 import { parseError } from "../lib/errors";
 
@@ -155,8 +156,18 @@ export function DevPanel({ open, onOpenChange }: DevPanelProps) {
 								</SelectTrigger>
 								<SelectContent>
 									{repositories.map((repo) => (
-										<SelectItem key={repo.id} value={repo.shortId}>
+										<SelectItem
+											key={repo.id}
+											value={repo.shortId}
+											disabled={isAgentRepository(repo)}
+										>
 											{repo.name} ({repo.type})
+											{isAgentRepository(repo) && (
+												<span className="text-muted-foreground">
+													{" "}
+													· not available for repositories stored on another machine
+												</span>
+											)}
 										</SelectItem>
 									))}
 								</SelectContent>

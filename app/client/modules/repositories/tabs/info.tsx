@@ -1,4 +1,6 @@
 import { Archive, Clock, FolderOpen, HardDrive, Lock, Settings, Shield } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { listSourceMachinesOptions } from "~/client/api-client/@tanstack/react-query.gen";
 import { TimeAgo } from "~/client/components/time-ago";
 import { Card, CardContent, CardTitle } from "~/client/components/ui/card";
 import type { Repository } from "~/client/lib/types";
@@ -15,9 +17,21 @@ type Props = {
 	isDoctorRunning?: boolean;
 };
 
-const getEffectiveLocalPath = (repository: Repository): string | null => {
-	if (repository.config.backend !== "local") return null;
-	return repository.config.path;
+/** Repositories on another machine store a path relative to one of its locations; show it under that location. */
+const useLocalPath = (repository: Repository): { label: string; path: string } | null => {
+	const config = repository.config.backend === "local" ? repository.config : null;
+	const trustedRootId = config?.trustedRootId;
+	const machinesQuery = useQuery({ ...listSourceMachinesOptions(), enabled: trustedRootId !== undefined });
+
+	if (!config) return null;
+	if (trustedRootId === undefined) return { label: "Local Path", path: config.path };
+
+	const location =
+		machinesQuery.data
+			?.find((machine) => machine.id === repository.agentId)
+			?.trustedRoots.find((root) => root.id === trustedRootId)?.label ?? trustedRootId;
+
+	return { label: "Location", path: config.path === "." ? location : `${location}/${config.path}` };
 };
 
 type ConfigRowProps = { icon: React.ReactNode; label: string; value: string; mono?: boolean; valueClassName?: string };
@@ -40,11 +54,10 @@ function ConfigRow({ icon, label, value, mono, valueClassName }: ConfigRowProps)
 }
 
 export const RepositoryInfoTabContent = ({ repository, initialStats, isDoctorRunning = false }: Props) => {
-	const effectiveLocalPath = getEffectiveLocalPath(repository);
+	const localPath = useLocalPath(repository);
 	const { formatDateTime } = useTimeFormat();
 
 	const config = repository.config as RepositoryConfig;
-	const hasLocalPath = Boolean(effectiveLocalPath);
 	const hasCaCert = Boolean(config.cacert);
 	const hasInsecureTlsConfig = config.insecureTls !== undefined;
 
@@ -65,6 +78,10 @@ export const RepositoryInfoTabContent = ({ repository, initialStats, isDoctorRun
 							<p className="text-sm">{repository.type}</p>
 						</div>
 						<div className="flex flex-col gap-1">
+							<div className="text-sm font-medium text-muted-foreground">Machine</div>
+							<p className="text-sm">{repository.agentName ?? "This server"}</p>
+						</div>
+						<div className="flex flex-col gap-1">
 							<div className="text-sm font-medium text-muted-foreground">Management</div>
 							<p className="text-sm">{repository.provisioningId ? "Provisioned" : "Manual"}</p>
 						</div>
@@ -83,11 +100,11 @@ export const RepositoryInfoTabContent = ({ repository, initialStats, isDoctorRun
 								<TimeAgo date={repository.lastChecked} />
 							</p>
 						</div>
-						{hasLocalPath && (
+						{localPath && (
 							<div className="flex flex-col gap-1 col-span-2">
-								<div className="text-sm font-medium text-muted-foreground">Local Path</div>
+								<div className="text-sm font-medium text-muted-foreground">{localPath.label}</div>
 								<p className="text-sm font-mono bg-muted/50 p-2 rounded-md break-all">
-									{effectiveLocalPath}
+									{localPath.path}
 								</p>
 							</div>
 						)}
@@ -102,11 +119,11 @@ export const RepositoryInfoTabContent = ({ repository, initialStats, isDoctorRun
 				</CardTitle>
 				<div className="space-y-0 divide-y divide-border/50">
 					<ConfigRow icon={<HardDrive className="h-4 w-4" />} label="Backend" value={repository.type} />
-					{hasLocalPath && (
+					{localPath && (
 						<ConfigRow
 							icon={<FolderOpen className="h-4 w-4" />}
-							label="Local Path"
-							value={effectiveLocalPath!}
+							label={localPath.label}
+							value={localPath.path}
 							mono
 						/>
 					)}

@@ -46,16 +46,21 @@ import {
 import { useServerFn } from "@tanstack/react-start";
 import { getServerConstants } from "~/server/lib/functions/server-constants";
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { BUILT_IN_LOCAL_AGENT_ID, isAgentRepository } from "@zerobyte/contracts/backup-context";
 
 const formBaseFields = {
 	name: z.string().min(2).max(32),
 	compressionMode: z.enum(COMPRESSION_MODES).optional(),
+	agentId: z.string().optional(),
 	autoCheckEnabled: z.boolean().default(true),
 };
 
 export const formSchema = z
 	.discriminatedUnion("backend", [
-		localRepositoryConfigSchema.extend(formBaseFields),
+		localRepositoryConfigSchema.extend({
+			...formBaseFields,
+			path: z.string().min(1, "Choose a repository directory"),
+		}),
 		s3RepositoryConfigSchema.extend(formBaseFields),
 		r2RepositoryConfigSchema.extend(formBaseFields),
 		gcsRepositoryConfigSchema.extend(formBaseFields),
@@ -79,10 +84,13 @@ export type RepositoryFormValues = z.input<typeof formSchema>;
 type Props = {
 	onSubmit: (values: RepositoryFormValues) => void;
 	mode?: "create" | "update";
+	/** Where a new repository is stored; another machine only supports local repositories. */
+	storedOn?: "server" | "machine";
 	initialValues?: Partial<RepositoryFormValues>;
 	formId?: string;
 	loading?: boolean;
 	className?: string;
+	agentName?: string | null;
 };
 
 const defaultValuesForType = (repoBase: string) => ({
@@ -105,10 +113,12 @@ const defaultValuesForType = (repoBase: string) => ({
 export const CreateRepositoryForm = ({
 	onSubmit,
 	mode = "create",
+	storedOn = "server",
 	initialValues,
 	formId,
 	loading,
 	className,
+	agentName,
 }: Props) => {
 	const formDefaultValues = initialValues ?? { autoCheckEnabled: true };
 	const getConstants = useServerFn(getServerConstants);
@@ -131,6 +141,10 @@ export const CreateRepositoryForm = ({
 	const backend = useWatch({ control: form.control, name: "backend" });
 	const isExisting = useWatch({ control: form.control, name: "isExistingRepository" });
 	const exactPath = mode === "update" || isExisting === true;
+	const onAnotherMachine =
+		mode === "update"
+			? isAgentRepository({ agentId: initialValues?.agentId ?? BUILT_IN_LOCAL_AGENT_ID })
+			: storedOn === "machine";
 
 	const [passwordMode, setPasswordMode] = useState<"default" | "custom">(
 		initialValues?.customPassword ? "custom" : "default",
@@ -167,60 +181,71 @@ export const CreateRepositoryForm = ({
 						</FormItem>
 					)}
 				/>
-				<FormField
-					control={form.control}
-					name="backend"
-					render={({ field }) => (
-						<FormItem>
-							<FormLabel>Backend</FormLabel>
-							<Select
-								onValueChange={(value) => {
-									const currentValues = form.getValues();
-									const selectedBackend = value as keyof ReturnType<typeof defaultValuesForType>;
-									const backendDefaultValues = defaultValuesForType(constants.REPOSITORY_BASE)[
-										selectedBackend
-									];
-									const autoCheckEnabled = currentValues.autoCheckEnabled ?? true;
-									const resetValues = {
-										name: currentValues.name,
-										isExistingRepository: currentValues.isExistingRepository,
-										customPassword: currentValues.customPassword,
-										autoCheckEnabled,
-										...backendDefaultValues,
-									};
-									field.onChange(value);
-									form.reset(resetValues);
-								}}
-								value={field.value ?? ""}
-								disabled={mode === "update"}
-							>
-								<FormControl>
-									<SelectTrigger>
-										<SelectValue placeholder="Select a backend" />
-									</SelectTrigger>
-								</FormControl>
-								<SelectContent>
-									{isBackendAllowed("local") && <SelectItem value="local">Local</SelectItem>}
-									{isBackendAllowed("s3") && <SelectItem value="s3">S3</SelectItem>}
-									{isBackendAllowed("r2") && <SelectItem value="r2">Cloudflare R2</SelectItem>}
-									{isBackendAllowed("gcs") && (
-										<SelectItem value="gcs">Google Cloud Storage</SelectItem>
-									)}
-									{isBackendAllowed("azure") && (
-										<SelectItem value="azure">Azure Blob Storage</SelectItem>
-									)}
-									{isBackendAllowed("rest") && <SelectItem value="rest">REST Server</SelectItem>}
-									{isBackendAllowed("sftp") && <SelectItem value="sftp">SFTP</SelectItem>}
-									{isBackendAllowed("rclone") && (
-										<SelectItem value="rclone">rclone (40+ cloud providers)</SelectItem>
-									)}
-								</SelectContent>
-							</Select>
-							<FormDescription>Choose the storage backend for this repository.</FormDescription>
-							<FormMessage />
-						</FormItem>
-					)}
-				/>
+				{onAnotherMachine && (
+					<LocalRepositoryForm
+						form={form}
+						exactPath={exactPath}
+						mode={mode}
+						onAnotherMachine
+						agentName={agentName}
+					/>
+				)}
+				{!onAnotherMachine && (
+					<FormField
+						control={form.control}
+						name="backend"
+						render={({ field }) => (
+							<FormItem>
+								<FormLabel>Backend</FormLabel>
+								<Select
+									onValueChange={(value) => {
+										const currentValues = form.getValues();
+										const selectedBackend = value as keyof ReturnType<typeof defaultValuesForType>;
+										const backendDefaultValues = defaultValuesForType(constants.REPOSITORY_BASE)[
+											selectedBackend
+										];
+										const autoCheckEnabled = currentValues.autoCheckEnabled ?? true;
+										const resetValues = {
+											name: currentValues.name,
+											isExistingRepository: currentValues.isExistingRepository,
+											customPassword: currentValues.customPassword,
+											autoCheckEnabled,
+											...backendDefaultValues,
+										};
+										field.onChange(value);
+										form.reset(resetValues);
+									}}
+									value={field.value ?? ""}
+									disabled={mode === "update"}
+								>
+									<FormControl>
+										<SelectTrigger>
+											<SelectValue placeholder="Select a backend" />
+										</SelectTrigger>
+									</FormControl>
+									<SelectContent>
+										{isBackendAllowed("local") && <SelectItem value="local">Local</SelectItem>}
+										{isBackendAllowed("s3") && <SelectItem value="s3">S3</SelectItem>}
+										{isBackendAllowed("r2") && <SelectItem value="r2">Cloudflare R2</SelectItem>}
+										{isBackendAllowed("gcs") && (
+											<SelectItem value="gcs">Google Cloud Storage</SelectItem>
+										)}
+										{isBackendAllowed("azure") && (
+											<SelectItem value="azure">Azure Blob Storage</SelectItem>
+										)}
+										{isBackendAllowed("rest") && <SelectItem value="rest">REST Server</SelectItem>}
+										{isBackendAllowed("sftp") && <SelectItem value="sftp">SFTP</SelectItem>}
+										{isBackendAllowed("rclone") && (
+											<SelectItem value="rclone">rclone (40+ cloud providers)</SelectItem>
+										)}
+									</SelectContent>
+								</Select>
+								<FormDescription>Choose the storage backend for this repository.</FormDescription>
+								<FormMessage />
+							</FormItem>
+						)}
+					/>
+				)}
 
 				<FormField
 					control={form.control}
@@ -355,7 +380,15 @@ export const CreateRepositoryForm = ({
 					</>
 				)}
 
-				{backend === "local" && <LocalRepositoryForm form={form} exactPath={exactPath} />}
+				{backend === "local" && !onAnotherMachine && (
+					<LocalRepositoryForm
+						form={form}
+						exactPath={exactPath}
+						mode={mode}
+						onAnotherMachine={false}
+						agentName={agentName}
+					/>
+				)}
 				{backend === "s3" && <S3RepositoryForm form={form} />}
 				{backend === "r2" && <R2RepositoryForm form={form} />}
 				{backend === "gcs" && <GCSRepositoryForm form={form} />}

@@ -4,7 +4,7 @@ import { safeJsonParse } from "@zerobyte/core/utils";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { repoMutex } from "../../../core/repository-mutex";
-import { restic } from "../../../core/restic";
+import { resticForAgent } from "../repository-restic";
 import { db } from "../../../db/db";
 import type { Repository } from "../../../db/schema";
 import { repositoriesTable } from "../../../db/schema";
@@ -19,8 +19,13 @@ type DoctorCommandParams = {
 
 type DoctorTaskResult = Extract<TaskResult, { kind: "doctor" }>;
 
-const runUnlockStep = async (config: RepositoryConfig, organizationId: string, signal: AbortSignal) => {
-	const result = await runEffectPromise(restic.unlock(config, { signal, organizationId })).then(
+const runUnlockStep = async (
+	agentId: string,
+	config: RepositoryConfig,
+	organizationId: string,
+	signal: AbortSignal,
+) => {
+	const result = await runEffectPromise(resticForAgent(agentId).unlock(config, { signal, organizationId })).then(
 		(result) => ({ success: true, output: result.message, error: null }),
 		(error) => ({ success: false, output: null, error: toMessage(error) }),
 	);
@@ -33,8 +38,10 @@ const runUnlockStep = async (config: RepositoryConfig, organizationId: string, s
 	} satisfies DoctorStep;
 };
 
-const runCheckStep = async (config: RepositoryConfig, organizationId: string, signal: AbortSignal) => {
-	const result = await runEffectPromise(restic.check(config, { readData: false, signal, organizationId })).then(
+const runCheckStep = async (agentId: string, config: RepositoryConfig, organizationId: string, signal: AbortSignal) => {
+	const result = await runEffectPromise(
+		resticForAgent(agentId).check(config, { readData: false, signal, organizationId }),
+	).then(
 		(result) => result,
 		(error) => ({ success: false, output: null, error: toMessage(error), hasErrors: true }),
 	);
@@ -47,8 +54,13 @@ const runCheckStep = async (config: RepositoryConfig, organizationId: string, si
 	} satisfies DoctorStep;
 };
 
-const runRepairIndexStep = async (config: RepositoryConfig, organizationId: string, signal: AbortSignal) => {
-	const result = await runEffectPromise(restic.repairIndex(config, { signal, organizationId })).then(
+const runRepairIndexStep = async (
+	agentId: string,
+	config: RepositoryConfig,
+	organizationId: string,
+	signal: AbortSignal,
+) => {
+	const result = await runEffectPromise(resticForAgent(agentId).repairIndex(config, { signal, organizationId })).then(
 		(result) => ({ success: true, output: result.output, error: null }),
 		(error) => ({ success: false, output: null, error: toMessage(error) }),
 	);
@@ -143,16 +155,31 @@ const executeDoctor = async (repository: Repository, signal: AbortSignal): Promi
 		const releaseLock = await repoMutex.acquireExclusive(repository.id, "doctor", signal);
 
 		try {
-			const unlockStep = await runUnlockStep(repository.config, repository.organizationId, signal);
+			const unlockStep = await runUnlockStep(
+				repository.agentId,
+				repository.config,
+				repository.organizationId,
+				signal,
+			);
 			steps.push(unlockStep);
 			checkAbortSignal(signal);
 
-			const checkStep = await runCheckStep(repository.config, repository.organizationId, signal);
+			const checkStep = await runCheckStep(
+				repository.agentId,
+				repository.config,
+				repository.organizationId,
+				signal,
+			);
 			steps.push(checkStep);
 			checkAbortSignal(signal);
 
 			if (parseCheckOutput(checkStep.output)?.suggest_repair_index) {
-				const repairStep = await runRepairIndexStep(repository.config, repository.organizationId, signal);
+				const repairStep = await runRepairIndexStep(
+					repository.agentId,
+					repository.config,
+					repository.organizationId,
+					signal,
+				);
 				steps.push(repairStep);
 				checkAbortSignal(signal);
 			}

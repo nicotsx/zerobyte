@@ -127,7 +127,7 @@ const sftpPolicy = repositoryPolicy<RepositoryConfigFor<"sftp">>(
 
 const localPolicy = repositoryPolicy<RepositoryConfigFor<"local">>(
 	[],
-	(stored, submitted) => stored.path === submitted.path,
+	(stored, submitted) => stored.path === submitted.path && stored.trustedRootId === submitted.trustedRootId,
 );
 
 const rclonePolicy = repositoryPolicy<RepositoryConfigFor<"rclone">>(
