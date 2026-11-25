@@ -137,6 +137,32 @@ describe("copy command", () => {
 		expect(getArgs().slice(separatorIndex + 1)).toEqual(["abc123", "def456", "ghi789"]);
 	});
 
+	test("omits --tag when snapshotIds are provided", async () => {
+		const { getArgs } = setup();
+
+		await Effect.runPromise(
+			copy(
+				sourceConfig,
+				destConfig,
+				{ organizationId: "org-1", snapshotIds: ["abc123"], tag: "daily" },
+				mockDeps,
+			),
+		);
+
+		expect(getArgs()).not.toContain("--tag");
+	});
+
+	test("filters 'latest' by tag when no snapshotIds are provided", async () => {
+		const { getArgs } = setup();
+
+		await Effect.runPromise(copy(sourceConfig, destConfig, { organizationId: "org-1", tag: "daily" }, mockDeps));
+
+		const tagIndex = getArgs().indexOf("--tag");
+		expect(tagIndex).toBeGreaterThan(-1);
+		expect(getArgs()[tagIndex + 1]).toBe("daily");
+		expect(getArgs().slice(getArgs().indexOf("--") + 1)).toEqual(["latest"]);
+	});
+
 	test("defaults to 'latest' when snapshotIds is empty array", async () => {
 		const { getArgs } = setup();
 
