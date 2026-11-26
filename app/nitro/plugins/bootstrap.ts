@@ -22,8 +22,19 @@ export default definePlugin(async (nitroApp) => {
 
 	nitroApp.hooks.hook("close", initiateShutdown);
 
+	let serverClosedResolve: (() => void) | undefined;
+	const serverClosed = new Promise<void>((resolve) => {
+		serverClosedResolve = resolve;
+	});
+	nitroApp.hooks.hook("close", () => {
+		serverClosedResolve?.();
+	});
+
 	const exitAfterShutdown = () => {
-		void initiateShutdown().finally(() => process.exit(0));
+		void Promise.all([
+			initiateShutdown(),
+			Promise.race([serverClosed, new Promise<void>((resolve) => setTimeout(resolve, SHUTDOWN_TIMEOUT_MS))]),
+		]).finally(() => process.exit(0));
 	};
 
 	process.once("SIGTERM", exitAfterShutdown);
