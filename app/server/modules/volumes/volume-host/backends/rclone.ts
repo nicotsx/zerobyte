@@ -14,6 +14,13 @@ const checkHealth = async (mountPath: string) => {
 	const run = async () => {
 		await assertMounted(mountPath, (fstype) => fstype.includes("rclone"));
 
+		const dir = await fs.opendir(mountPath);
+		try {
+			await dir.read();
+		} finally {
+			await dir.close().catch(() => {});
+		}
+
 		logger.debug(`Rclone volume at ${mountPath} is healthy and mounted.`);
 		return { status: "mounted" as const };
 	};
