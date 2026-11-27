@@ -1,7 +1,8 @@
+import { AGENT_PROTOCOL_VERSION } from "@zerobyte/contracts/agent-protocol";
 import { basename, resolve } from "node:path";
 import { logger } from "@zerobyte/core/node";
 import { Command, InvalidArgumentError } from "commander";
-import { Cause, Console, Data, Effect, Exit } from "effect";
+import { Cause, Clock, Console, Data, Effect, Exit } from "effect";
 import { runAgent } from "./agent";
 import { promptConnectionCode, readConnectionCodeFromStdin } from "./connection-code";
 import { readConfiguration, writeConfiguration } from "./config";
@@ -12,6 +13,8 @@ import { HostLive, type Host } from "./host";
 import { checkRestic, MIN_RESTIC_VERSION } from "./restic/prerequisites";
 import { loadStartupConfiguration } from "./startup";
 import { controlService, defaultServicePaths, installSystemService, SERVICE_CONFIG, showLogs } from "./system-service";
+
+import { currentAgentVersion, detectManagedSystemd, SYSTEMD_UPDATE_EXIT_CODE } from "./systemd-update";
 
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 5_000;
 
@@ -65,6 +68,12 @@ export const program = new Command()
 	.description(`Zerobyte backup agent (requires Restic ${MIN_RESTIC_VERSION} or newer)`)
 	.version(process.env.ZEROBYTE_AGENT_VERSION ?? "dev");
 
+program.command("update-build", { hidden: true }).action(() => {
+	const version = currentAgentVersion();
+	if (!version) throw new Error("Expected a release build");
+	process.stdout.write(`${version} ${AGENT_PROTOCOL_VERSION}\n`);
+});
+
 program
 	.command("run")
 	.description("Run in the foreground (used by the system service)")
@@ -75,11 +84,24 @@ program
 
 		await runCommand(
 			Effect.gen(function* () {
+				const startupStartedAt = yield* Clock.monotonicTimeNanos;
 				const resticVersion = yield* checkRestic;
 				const configuration = yield* loadStartupConfiguration(options.config, options.allowInsecure);
+				const managedService = detectManagedSystemd(options.config, builtinLocal);
 
 				yield* Effect.raceFirst(
-					runAgent({ configuration, resticVersion, builtinLocal }),
+					runAgent({
+						configuration,
+						resticVersion,
+						builtinLocal,
+						managedService: managedService && { ...managedService, startupStartedAt },
+					}).pipe(
+						Effect.tap((committed) =>
+							Effect.sync(() => {
+								if (committed) process.exitCode = SYSTEMD_UPDATE_EXIT_CODE;
+							}),
+						),
+					),
 					waitForShutdown(builtinLocal),
 				).pipe(
 					Effect.ensuring(

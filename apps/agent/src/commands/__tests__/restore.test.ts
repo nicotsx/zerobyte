@@ -33,6 +33,7 @@ const createContext = (allowRestore = true) => {
 
 	const context: ControllerCommandContext = {
 		allowRestore,
+		startBackupJob: () => Effect.die("Unexpected backup command"),
 		trustedRoots: new Map(),
 		resticDeps,
 		getRunningJob: (jobId) => Effect.succeed(runningJobs.get(jobId)),

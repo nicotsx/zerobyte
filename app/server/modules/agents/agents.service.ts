@@ -351,6 +351,7 @@ export const agentsService = {
 	revokeRemoteAgentToken,
 	markAgentConnecting,
 	markAgentOnline,
+	isBackupDispatchFenced: (agentId: string) => agentUpdates.isBackupDispatchFenced(agentId),
 	markAgentProtocolRejected,
 	markAgentSeen,
 	markAgentOffline,

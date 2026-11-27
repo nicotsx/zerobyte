@@ -687,6 +687,18 @@ test("waits for running-job registration before returning to the processor loop"
 		trustedRoots: createTrustedRootRegistry({ builtinLocal: true }),
 		resticDeps,
 		getRunningJob: (jobId) => Effect.succeed(runningJobs.get(jobId)),
+		startBackupJob: (jobId, job, run) =>
+			context
+				.setRunningJob(jobId, job)
+				.pipe(
+					Effect.andThen(
+						Effect.forkChild(
+							run.pipe(Effect.ensuring(context.deleteRunningJob(jobId)), Effect.interruptible),
+						),
+					),
+					Effect.asVoid,
+					Effect.uninterruptible,
+				),
 		setRunningJob: (jobId, job) =>
 			Effect.callback<void, never>((resume) => {
 				void setRunningJobGate.promise.then(() => {

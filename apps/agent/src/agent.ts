@@ -1,9 +1,16 @@
+import type { AgentCapabilities } from "@zerobyte/contracts/agent-protocol";
 import { logger } from "@zerobyte/core/node";
 import { toMessage } from "@zerobyte/core/utils";
 import { Data, Duration, Effect, Schedule } from "effect";
 import { ConfigurationUnreadable, type LoadedConfiguration } from "./config";
 import { createControllerSession } from "./controller-session";
 import { createTrustedRootRegistry, type TrustedRootRegistry } from "./trusted-roots";
+import { createUpdateJobs, type UpdateJobs } from "./update-jobs";
+import { confirmUpdateTrial, runSelfUpdate } from "./self-update";
+import { getLocalUpdateTrial, readLocalUpdateState } from "./local-update-state";
+import { canUpdateSystemd, notifySystemdReady, type ManagedSystemd } from "./systemd-update";
+import { maintenanceUrl } from "./maintenance-client";
+import { SERVICE_CONFIG } from "./service-paths";
 
 const INITIAL_RECONNECT_DELAY = Duration.seconds(1);
 const MAX_RECONNECT_DELAY = Duration.seconds(30);
@@ -14,6 +21,7 @@ export type AgentOptions = {
 	configuration: LoadedConfiguration;
 	resticVersion: string;
 	builtinLocal: boolean;
+	managedService?: ManagedSystemd & { startupStartedAt: bigint };
 };
 
 const announced = <In>(schedule: Schedule.Schedule<unknown, In>) =>
@@ -35,7 +43,12 @@ const afterSessionEnded = announced(Schedule.spaced(INITIAL_RECONNECT_DELAY).pip
  * Succeeds when an established session ends and fails when the socket closes before opening. Retrying only
  * failures lets backoff restart from its initial delay once a connection has been accepted.
  */
-const connectOnce = ({ configuration, resticVersion, builtinLocal }: AgentOptions, trustedRoots: TrustedRootRegistry) =>
+const connectOnce = (
+	{ configuration, resticVersion, builtinLocal, managedService }: AgentOptions,
+	trustedRoots: TrustedRootRegistry,
+	updateJobs?: UpdateJobs,
+	updateTrial?: AgentCapabilities["updateTrial"],
+) =>
 	Effect.callback<void, ConnectionFailed>((resume) => {
 		const redact = (message: string) => message.replaceAll(configuration.token, "[redacted]").slice(0, 500);
 
@@ -46,7 +59,12 @@ const connectOnce = ({ configuration, resticVersion, builtinLocal }: AgentOption
 			resticVersion,
 			trustedRoots,
 			builtinLocal,
-			excludedPaths: configuration.configPath ? [configuration.configPath] : [],
+			updateJobs,
+			updateTrial,
+			excludedPaths: [
+				...(configuration.configPath ? [configuration.configPath] : []),
+				...(managedService ? [managedService.directory] : []),
+			],
 		});
 		let opened = false;
 
@@ -102,8 +120,55 @@ export const runAgent = (options: AgentOptions) =>
 			catch: (error) => new ConfigurationUnreadable({ message: toMessage(error) }),
 		});
 
-		yield* connectOnce(options, trustedRoots).pipe(
-			Effect.retry(afterFailedConnection),
-			Effect.repeat(afterSessionEnded),
+		const { managedService, configuration } = options;
+		const connect = (jobs?: UpdateJobs, getTrial?: () => AgentCapabilities["updateTrial"]) =>
+			Effect.suspend(() => connectOnce(options, trustedRoots, jobs, getTrial?.())).pipe(
+				Effect.retry(afterFailedConnection),
+				Effect.repeat(afterSessionEnded),
+			);
+
+		const state = managedService ? readLocalUpdateState(managedService.directory) : undefined;
+		if (state?.phase === "invalid" && state.trial) {
+			return yield* Effect.fail(new Error("Invalid agent update trial", { cause: state.error }));
+		}
+		const trial = state?.phase === "trial";
+		if (!trial) yield* notifySystemdReady;
+		if (!managedService) return yield* connect();
+		if (state?.phase === "invalid") {
+			yield* logger.effect.warn(`Systemd agent update unavailable: ${toMessage(state.error)}`);
+			return yield* connect();
+		}
+
+		const eligible = yield* Effect.try(
+			() =>
+				configuration.configPath === SERVICE_CONFIG &&
+				!process.env.ZEROBYTE_AGENT_ENROLLMENT_CODE &&
+				Boolean(maintenanceUrl(configuration.controllerUrl)) &&
+				canUpdateSystemd(managedService),
+		).pipe(
+			Effect.catch((error) =>
+				logger.effect.warn(`Systemd agent update unavailable: ${toMessage(error)}`).pipe(Effect.as(false)),
+			),
 		);
+
+		if (!eligible) {
+			if (trial) return yield* Effect.fail(new Error("Agent update trial is no longer eligible"));
+			return yield* connect();
+		}
+
+		const getTrial = () => getLocalUpdateTrial(readLocalUpdateState(managedService.directory));
+
+		const jobs = createUpdateJobs();
+		if (trial) jobs.beginCommit();
+
+		const confirmTrial = confirmUpdateTrial(managedService, configuration, managedService.startupStartedAt).pipe(
+			Effect.tap(() => Effect.sync(() => jobs.cancelCommit())),
+		);
+
+		return yield* Effect.raceFirst(
+			connect(jobs, getTrial),
+			(trial ? confirmTrial : Effect.void).pipe(
+				Effect.andThen(runSelfUpdate(managedService, configuration, jobs)),
+			),
+		).pipe(Effect.ensuring(jobs.close));
 	});

@@ -113,7 +113,8 @@ export const agentMaintenanceDto = describeRoute({
 	responses: {
 		200: response(agentMaintenanceResponseSchema, "Agent maintenance result"),
 		401: response(errorSchema, "A current enrolled agent credential is required"),
-		409: response(errorSchema, "The update request or attempt is stale. Poll for the current request."),
+		409: response(errorSchema, "The update attempt is stale or awaiting controller readiness."),
+		410: response(errorSchema, "The update attempt has expired, been replaced, or finalized."),
 		413: response(errorSchema, "Reduce the request body to the maintenance request size limit"),
 		426: response(errorSchema, "Use HTTPS for agent maintenance"),
 		503: response(errorSchema, "Remote agents are disabled on this controller"),

@@ -186,6 +186,10 @@ export const agentCapabilitiesSchema = z
 		resticVersion: z.string().optional(),
 		restore: z.boolean().optional(),
 		selfUpdate: agentSelfUpdateSchema.optional().catch(undefined),
+		updateTrial: z
+			.object({ requestId: z.uuid(), attemptId: z.uuid(), locallyAccepted: z.literal(true).optional() })
+			.optional()
+			.catch(undefined),
 		trustedRoots: z.array(trustedRootDescriptorSchema).max(MAX_AGENT_TRUSTED_ROOTS).optional(),
 	})
 	.catchall(z.unknown());
