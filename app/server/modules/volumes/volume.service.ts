@@ -337,7 +337,7 @@ const listFiles = async (
 const browseFilesystem = async (agentId: string, rootId: string, browsePath: string, signal?: AbortSignal) => {
 	const organizationId = getOrganizationId();
 
-	await validateTrustedRoot(agentId, rootId, organizationId);
+	await validateTrustedRoot(agentId, rootId, organizationId, "browse");
 
 	const relativePath = normalizeRelativePath(browsePath);
 	const reference = { rootId, relativePath };

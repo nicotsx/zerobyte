@@ -163,7 +163,6 @@ test("each connection gets a session with the configured roots and versions", as
 	expect(createControllerSession).toHaveBeenLastCalledWith(expect.any(TestWebSocket), {
 		resticVersion: "0.18.1",
 		trustedRoots: roots,
-		builtinLocal: false,
 		excludedPaths: ["/var/lib/zerobyte-agent/agent.json"],
 	});
 
