@@ -52,6 +52,24 @@ describe("remote agent enrollment API", () => {
 		expect(forbidden.status).toBe(403);
 	});
 
+	test("rejects an organization mismatch even when there are no remote agents", async () => {
+		const response = await app.request(`/api/v1/agents?expectedOrganizationId=${admin.organizationId}`, {
+			headers: admin.headers,
+		});
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expect(await response.json()).toEqual([]);
+
+		const list = vi.spyOn(agentsService, "listOrganizationAgents");
+		const mismatch = await app.request(`/api/v1/agents?expectedOrganizationId=${owner.organizationId}`, {
+			headers: admin.headers,
+		});
+
+		expect(mismatch.status).toBe(409);
+		expect(list).not.toHaveBeenCalled();
+	});
+
 	test("returns the enrollment token once and never leaks its hash through listing", async () => {
 		const created = await app.request("/api/v1/agents", {
 			method: "POST",

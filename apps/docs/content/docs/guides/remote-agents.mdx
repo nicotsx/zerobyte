@@ -92,7 +92,7 @@ environment:
   ZEROBYTE_AGENT_ROOTS: '[{"id":"files-1","label":"Files","path":"/data","allowBackup":true}]'
 ```
 
-Keep existing root IDs when changing paths so sources continue to reference the same location. Use `docker compose logs -f agent` for logs. To update, change the image tag, run `docker compose pull`, then `docker compose up -d` between backup runs.
+Keep existing root IDs when changing paths so sources continue to reference the same location. Use `docker compose logs -f agent` for logs. For upgrades, follow the [manual update instructions](#manual-updates).
 
 To reconnect an existing container, use that machine's **Actions → Get connection command**, confirm the reconnect warning, and choose **Docker**. Replace the enrollment code in your existing YAML and run `docker compose up -d --force-recreate`. Preserve your configuration volume and allowed-location settings; the fresh code reconnects the same machine.
 
@@ -158,19 +158,26 @@ If the connection drops, the agent retries automatically. The delay increases be
 
 ## Update the agent
 
-To install the latest stable agent release, run the installer again without a connection code:
+Open **Settings → Machines** to see which agents have updates. **Update required** means the agent is too old for this server and backups from that machine are blocked. **Update available** means the agent is compatible and you can upgrade when convenient.
 
-```bash
-curl -fsSL https://zerobyte.app/install.sh | sudo bash
-```
+Choose **Update agent** on a supported Linux systemd installation connected over HTTPS. Zerobyte verifies signed GitHub release attestations before offering remote updates. The server and agent need outbound HTTPS access to the release downloads and to `tuf-repo-cdn.sigstore.dev` for Sigstore trust metadata. The request stays queued until the agent checks in, even when Machines shows it as offline or its protocol is too old for backups. The agent lets running jobs finish before replacing its executable and restarting the service. Zerobyte marks the update **Completed** when the updated agent reconnects. If the update fails, you can retry from Machines when the release is still offered.
 
-To install a specific release, set `ZEROBYTE_AGENT_VERSION`:
+### Manual updates
+
+If Machines shows **How to update**, follow the instructions for your installation and use the target version shown there when available.
+
+- **Docker Compose:** Change the agent image tag in your Compose configuration to match the Zerobyte server. Use the published release tag for a release server or `nightly` for a nightly server. Between backup runs, run `docker compose pull agent` and `docker compose up -d agent` from the directory containing the Compose file. Keep the existing configuration volume and allowed-location mounts.
+- **Linux systemd:** An installation that predates the managed updater needs one manual upgrade before you can request future updates from Machines over HTTPS. Update between backup runs, using the installer without a connection code.
+
+For Linux systemd, pin a published release tag with Linux agent binaries that matches your Zerobyte server. Use the target shown in Machines when it matches a published release. Replace `vX.Y.Z` with that release tag:
 
 ```bash
 curl -fsSL https://zerobyte.app/install.sh | sudo env ZEROBYTE_AGENT_VERSION=vX.Y.Z bash
 ```
 
-Updates preserve the machine's connection and allowed locations, then restart the service. Run them between backup runs. Agents don't update automatically.
+For a nightly server, use the matching nightly Docker agent, or run a published Zerobyte server release with its matching published Linux agent if you need systemd.
+
+The installer preserves the machine's connection and allowed locations, then restarts the service.
 
 If you've downloaded a new agent executable yourself, run its `install` command without a connection code to update the existing installation. A connection code is only needed for first-time setup or reconnection.
 

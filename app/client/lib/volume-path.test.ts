@@ -41,6 +41,7 @@ describe("getVolumeMountPath", () => {
 				server: "storage.internal",
 				exportPath: "/exports/archive",
 				version: "4.1",
+				port: 2049,
 			},
 			type: "nfs",
 		} satisfies Volume;

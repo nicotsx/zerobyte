@@ -106,11 +106,17 @@ const prepareAgent = async (protocolVersion: number | undefined, version = "1.3.
 	return { identity, token, enrollment };
 };
 
-const queue = (agentId: string, headers = owner.headers, targetTag = config.appVersion, signal?: AbortSignal) =>
+const queue = (
+	agentId: string,
+	headers = owner.headers,
+	targetTag = config.appVersion,
+	credentialVersion = 2,
+	signal?: AbortSignal,
+) =>
 	app.request(`/api/v1/agents/${agentId}/update`, {
 		method: "POST",
 		headers: { ...headers, "content-type": "application/json" },
-		body: JSON.stringify({ targetTag }),
+		body: JSON.stringify({ targetTag, credentialVersion }),
 		signal,
 	});
 
@@ -190,6 +196,33 @@ test("queues a verified exact target and delivers it offline, fencing attempts a
 	await agentsService.rotateRemoteAgentToken(owner.organizationId, identity.agentId);
 	expect((await maintenance(token)).status).toBe(401);
 	expect(() => agentUpdates.maintainAgent(identity, { action: "poll" })).toThrow("Invalid agent credential");
+});
+
+test("rejects a confirmation captured before the machine credential was replaced", async () => {
+	config.appVersion = "v1.41.0";
+	const { fetchRelease } = serveRelease();
+	const { identity } = await prepareAgent(AGENT_PROTOCOL_VERSION, "1.3.0", "systemd");
+	const original = await agentsService.getAgent(identity.agentId);
+	expect(original?.credentialVersion).toBe(identity.credentialVersion);
+
+	const rotation = await agentsService.rotateRemoteAgentToken(owner.organizationId, identity.agentId);
+	const { token } = await agentsService.exchangeEnrollmentToken(rotation.token);
+	const replacement = (await validateRemoteAgentToken(token))!;
+	await agentsService.markAgentOnline(replacement, original!.capabilities);
+
+	const staleRequest = await queue(identity.agentId, owner.headers, config.appVersion, identity.credentialVersion);
+	expect(staleRequest.status).toBe(409);
+	expect(fetchRelease).not.toHaveBeenCalled();
+	expect((await agentsService.getAgent(identity.agentId))?.updateRequest).toBeNull();
+
+	const currentRequest = await queue(
+		identity.agentId,
+		owner.headers,
+		config.appVersion,
+		replacement.credentialVersion,
+	);
+	expect(currentRequest.status).toBe(200);
+	expect((await agentsService.getAgent(identity.agentId))?.updateRequest?.status).toBe("queued");
 });
 
 test.each([
@@ -297,7 +330,7 @@ test("aborting a queue request leaves a shared release lookup running for anothe
 	});
 
 	const caller = new AbortController();
-	const abandoned = queue(identity.agentId, owner.headers, release.tag, caller.signal);
+	const abandoned = queue(identity.agentId, owner.headers, release.tag, identity.credentialVersion, caller.signal);
 	const downloadSignal = await started.promise;
 	const concurrent = Effect.runPromise(getAgentUpdateRelease(release.tag));
 
@@ -318,7 +351,13 @@ test("an already cancelled queue request does not write when the release is cach
 
 	expect(await Effect.runPromise(getAgentUpdateRelease(release.tag))).toEqual(release);
 
-	const response = await queue(identity.agentId, owner.headers, release.tag, AbortSignal.abort());
+	const response = await queue(
+		identity.agentId,
+		owner.headers,
+		release.tag,
+		identity.credentialVersion,
+		AbortSignal.abort(),
+	);
 	expect(response.ok).toBe(false);
 	expect((await agentsService.getAgent(identity.agentId))?.updateRequest).toBeNull();
 	expect(fetchRelease).toHaveBeenCalledOnce();

@@ -56,8 +56,10 @@ export const Route = createFileRoute("/(dashboard)/settings/")({
 			}
 
 			let machinesPromise;
-			if (context.permissions["agents.manage"] && context.features.remoteAgents) {
-				machinesPromise = context.queryClient.ensureQueryData(listAgentsOptions());
+			if (context.activeOrganizationId && context.permissions["agents.manage"] && context.features.remoteAgents) {
+				machinesPromise = context.queryClient.prefetchQuery(
+					listAgentsOptions({ query: { expectedOrganizationId: context.activeOrganizationId } }),
+				);
 			}
 
 			let ssoSettingsPromise;

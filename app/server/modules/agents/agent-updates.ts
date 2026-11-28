@@ -46,7 +46,7 @@ const getReleaseForAgents = (agents: Agent[]) =>
 const organizationRemoteAgent = (organizationId: string, agentId: string) =>
 	and(eq(agentsTable.id, agentId), eq(agentsTable.organizationId, organizationId), eq(agentsTable.kind, "remote"));
 
-const requestUpdate = (grant: AuthorizationGrant, agentId: string, targetTag: string) =>
+const requestUpdate = (grant: AuthorizationGrant, agentId: string, targetTag: string, credentialVersion: number) =>
 	Effect.gen(function* () {
 		const scope = organizationRemoteAgent(grant.organizationId, agentId);
 		const observed = yield* Effect.try({
@@ -54,6 +54,13 @@ const requestUpdate = (grant: AuthorizationGrant, agentId: string, targetTag: st
 			catch: (cause) => cause,
 		});
 		if (!observed) return yield* Effect.fail(new NotFoundError("Remote agent not found"));
+		if (observed.credentialVersion !== credentialVersion) {
+			return yield* Effect.fail(
+				new ConflictError(
+					"The agent credential changed. Review the current machine before requesting an update.",
+				),
+			);
+		}
 		if (targetTag !== getAgentUpdateTag()) {
 			return yield* Effect.fail(new ConflictError("The server's agent update target changed"));
 		}
@@ -80,10 +87,7 @@ const requestUpdate = (grant: AuthorizationGrant, agentId: string, targetTag: st
 
 						const agent = tx.select().from(agentsTable).where(scope).get();
 						if (!agent) throw new NotFoundError("Remote agent not found");
-						if (
-							agent.credentialVersion !== observed.credentialVersion ||
-							targetTag !== getAgentUpdateTag()
-						) {
+						if (agent.credentialVersion !== credentialVersion || targetTag !== getAgentUpdateTag()) {
 							throw new ConflictError("The agent credential or server update target changed");
 						}
 

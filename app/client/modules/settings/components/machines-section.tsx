@@ -1,4 +1,4 @@
-import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Plus, RefreshCw } from "lucide-react";
 import { useRef, useState } from "react";
@@ -12,26 +12,34 @@ import { Button } from "~/client/components/ui/button";
 import { getMachineDisplayName } from "~/lib/machine-name";
 import { ConfirmActionDialog, type ConfirmActionDialogProps } from "./confirm-action-dialog";
 import { MachineRow, type MachineAction } from "./machine-row";
+import { useMachineUpdateConfirmation } from "./use-machine-update-confirmation";
 
 /** Kept after closing so the dialog can animate out with its content intact. */
 type Confirmation = { action: Exclude<MachineAction, "rotate">; agentId: string; machineName: string; open: boolean };
 
 type ActionDialog = Omit<ConfirmActionDialogProps, "open" | "onOpenChange" | "returnFocusRef"> & { reset: () => void };
 
-export function MachinesSection() {
+export function MachinesSection({ organizationId }: { organizationId: string }) {
+	return <OrganizationMachines key={organizationId} organizationId={organizationId} />;
+}
+
+function OrganizationMachines({ organizationId }: { organizationId: string }) {
 	const navigate = useNavigate();
 	const [confirmation, setConfirmation] = useState<Confirmation | null>(null);
 
-	const agentsQuery = useSuspenseQuery({
-		...listAgentsOptions(),
+	const agentsQuery = useQuery({
+		...listAgentsOptions({ query: { expectedOrganizationId: organizationId } }),
 		refetchInterval: 5_000,
 		refetchIntervalInBackground: false,
 	});
+	const agents = agentsQuery.data ?? [];
 
-	const remoteCount = agentsQuery.data.filter((agent) => agent.kind === "remote").length;
+	const remoteCount = agents.filter((agent) => agent.kind === "remote").length;
 
 	const connectButtonRef = useRef<HTMLButtonElement>(null);
 	const returnFocusRef = useRef<HTMLElement | null>(null);
+
+	const update = useMachineUpdateConfirmation(connectButtonRef);
 
 	const closeConfirmation = () => setConfirmation((current) => current && { ...current, open: false });
 
@@ -86,9 +94,11 @@ export function MachinesSection() {
 			<div className="space-y-4">
 				<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 					<p className="text-sm font-medium">
-						{remoteCount === 0
-							? "No remote machines"
-							: `${remoteCount} remote machine${remoteCount === 1 ? "" : "s"}`}
+						{agentsQuery.isPending && "Loading machines…"}
+						{agentsQuery.data &&
+							(remoteCount === 0
+								? "No remote machines"
+								: `${remoteCount} remote machine${remoteCount === 1 ? "" : "s"}`)}
 					</p>
 					<Button
 						ref={connectButtonRef}
@@ -108,7 +118,7 @@ export function MachinesSection() {
 					<Alert variant="destructive">
 						<AlertContent>
 							<AlertTitle>Could not refresh machines</AlertTitle>
-							<AlertDescription>Showing the last known details.</AlertDescription>
+							{agentsQuery.data && <AlertDescription>Showing the last known details.</AlertDescription>}
 						</AlertContent>
 						<AlertAction>
 							<Button
@@ -126,10 +136,11 @@ export function MachinesSection() {
 				)}
 
 				<ul className="min-w-0 divide-y overflow-hidden rounded-lg border" aria-label="Machines">
-					{agentsQuery.data.map((agent) => (
+					{agents.map((agent) => (
 						<MachineRow
 							key={agent.id}
 							agent={agent}
+							onUpdate={update.open}
 							onAction={(action, target, trigger) => {
 								if (action === "rotate") {
 									void navigate({
@@ -146,12 +157,15 @@ export function MachinesSection() {
 				</ul>
 			</div>
 
+			{update.dialog && <ConfirmActionDialog {...update.dialog} />}
+
 			{confirmation && (
 				<ConfirmActionDialog
 					{...actionDialogs[confirmation.action]}
 					open={confirmation.open}
 					onOpenChange={(open) => !open && closeConfirmation()}
 					returnFocusRef={returnFocusRef}
+					getFallbackFocus={() => connectButtonRef.current}
 				/>
 			)}
 		</>
