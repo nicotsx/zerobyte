@@ -50,7 +50,7 @@ The connection code in the command can be used once and expires after 15 minutes
 
 ## Run with Docker
 
-The agent image is published at `ghcr.io/nicotsx/zerobyte-agent` for Linux AMD64 and ARM64. Use the same version tag as your Zerobyte server, such as `vX.Y.Z`. Stable releases also have `latest`, major, and minor tags; development builds use `nightly` or `sha-<commit>` tags.
+The agent image is published at `ghcr.io/nicotsx/zerobyte-agent` for Linux AMD64 and ARM64. Use the same version tag as your Zerobyte server, such as `vX.Y.Z`. Stable releases also have `latest`, major, and minor tags; branch builds use `sha-<commit>` tags.
 
 The image contains the standalone agent, Restic, CA certificates, and an SSH client for SFTP repositories. It runs in the foreground without systemd. Mount the directories you want to back up from the host; network filesystems should be mounted on the host first.
 
