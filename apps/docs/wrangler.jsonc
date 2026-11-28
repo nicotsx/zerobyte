@@ -5,6 +5,6 @@
 	"compatibility_flags": ["nodejs_compat"],
 	"main": "@tanstack/react-start/server-entry",
 	"assets": {
-		"run_worker_first": ["/sitemap.xml"],
+		"run_worker_first": ["/sitemap.xml", "/llms.txt"],
 	},
 }

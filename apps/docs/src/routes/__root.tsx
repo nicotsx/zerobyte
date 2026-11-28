@@ -2,7 +2,7 @@ import { HeadContent, Scripts, createRootRoute } from "@tanstack/react-router";
 import { RootProvider } from "fumadocs-ui/provider/tanstack";
 
 import Header from "../components/Header";
-import { ogImageUrl } from "@/lib/metadata";
+import { siteName } from "@/lib/metadata";
 
 import appCss from "../styles.css?url";
 
@@ -17,32 +17,16 @@ export const Route = createRootRoute({
 				content: "width=device-width, initial-scale=1",
 			},
 			{
-				property: "og:type",
-				content: "website",
+				property: "og:site_name",
+				content: siteName,
 			},
 			{
-				property: "og:image",
-				content: ogImageUrl,
-			},
-			{
-				property: "og:image:width",
-				content: "2048",
-			},
-			{
-				property: "og:image:height",
-				content: "1152",
-			},
-			{
-				property: "og:image:alt",
-				content: "Zerobyte backups dashboard preview",
+				property: "og:locale",
+				content: "en_US",
 			},
 			{
 				name: "twitter:card",
 				content: "summary_large_image",
-			},
-			{
-				name: "twitter:image",
-				content: ogImageUrl,
 			},
 		],
 		links: [
@@ -55,16 +39,6 @@ export const Route = createRootRoute({
 			{ rel: "shortcut icon", href: "/images/favicon/favicon.ico" },
 			{ rel: "apple-touch-icon", sizes: "180x180", href: "/images/favicon/apple-touch-icon.png" },
 			{ rel: "manifest", href: "/images/favicon/site.webmanifest" },
-			{ rel: "preconnect", href: "https://fonts.googleapis.com" },
-			{
-				rel: "preconnect",
-				href: "https://fonts.gstatic.com",
-				crossOrigin: "anonymous",
-			},
-			{
-				rel: "stylesheet",
-				href: "https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&display=swap",
-			},
 		],
 	}),
 	shellComponent: RootDocument,

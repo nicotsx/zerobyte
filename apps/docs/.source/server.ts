@@ -8,7 +8,7 @@ const create = server<typeof Config, import("fumadocs-mdx/runtime/types").Intern
   }
 }>();
 
-export const docs = await create.docs("docs", "content/docs", import.meta.glob(["./**/*.{json,yaml}"], {
+export const docs = await create.docs("docs", "content/docs", import.meta.glob(["./**/{*.{json,yaml},meta{,.*}.{js,ts}}"], {
   "base": "./../content/docs",
   "query": "?collection=docs",
   "import": "default",
