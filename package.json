@@ -42,6 +42,7 @@
 		"test:e2e:passkeys": "bunx --bun playwright test --config playwright.auth.config.ts 0008-passkeys",
 		"test:e2e:ui": "NODE_ENV=test dotenv run -f .env.local -- bunx --bun playwright test --ui",
 		"test:codegen": "bunx --bun playwright codegen localhost:4096",
+		"screenshots:marketing": "bun scripts/generate-marketing-screenshots.ts",
 		"screenshots:store": "bun scripts/generate-store-screenshots.ts",
 		"typecheck": "bun check --no-script && bun run --parallel --workspaces typecheck"
 	},

@@ -9,6 +9,7 @@ on:
       - main
     paths:
       - "apps/docs/**"
+      - "screenshots/readme/backups.webp"
 
 jobs:
   deploy:
@@ -22,6 +23,10 @@ jobs:
 
       - name: Install dependencies
         uses: "./.github/actions/install-dependencies"
+
+      - name: Install Playwright Chromium
+        working-directory: apps/docs
+        run: bunx --bun playwright install --with-deps --only-shell chromium
 
       - name: Build docs
         working-directory: apps/docs

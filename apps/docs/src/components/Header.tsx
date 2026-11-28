@@ -1,8 +1,10 @@
 import { Link } from "@tanstack/react-router";
 import { GithubLogoIcon, DiscordLogoIcon } from "@phosphor-icons/react";
+import { Heart } from "lucide-react";
 
 const discordUrl = "https://discord.gg/MzBXz5v5XB";
 const repoUrl = "https://github.com/nicotsx/zerobyte";
+const sponsorUrl = "https://www.buymeacoffee.com/nicotsx";
 const homeSectionLinks = [{ href: "/", label: "Home" }];
 const buttonBaseClass =
 	"inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0";
@@ -43,6 +45,16 @@ export default function Header() {
 				</div>
 
 				<div className="flex items-center gap-3">
+					<a
+						href={sponsorUrl}
+						target="_blank"
+						rel="noopener noreferrer"
+						title="Support Zerobyte"
+						className={`${buttonBaseClass} group size-9 text-muted-foreground hover:bg-accent hover:text-strong-accent`}
+					>
+						<Heart strokeWidth={1.75} className="h-5 w-5 transition-colors group-hover:fill-current" />
+						<span className="sr-only">Support Zerobyte</span>
+					</a>
 					<a
 						href={discordUrl}
 						target="_blank"

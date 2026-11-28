@@ -12,7 +12,7 @@ import { useFumadocsLoader } from "fumadocs-core/source/client";
 import { Suspense } from "react";
 import { Card, Cards } from "@/components/DocsCard";
 import { DocsMdxLink } from "@/components/DocsMdxLink";
-import { buildSeoHead, formatDocsTitle, siteDescription } from "@/lib/metadata";
+import { buildDocsJsonLd, buildSeoHead, formatDocsTitle, siteDescription } from "@/lib/metadata";
 
 type DocsLoaderData = {
 	path: string;
@@ -25,11 +25,17 @@ type DocsLoaderData = {
 export const Route = createFileRoute("/docs/$")({
 	head: ({ loaderData }) => {
 		const data = loaderData as DocsLoaderData | undefined;
-		const title = formatDocsTitle(data?.title ?? "Zerobyte Documentation");
+		const pageTitle = data?.title ?? "Zerobyte Documentation";
 		const description = data?.description ?? siteDescription;
 		const path = data?.url ?? "/docs";
 
-		return buildSeoHead({ title, description, path });
+		return buildSeoHead({
+			title: formatDocsTitle(pageTitle),
+			description,
+			path,
+			type: "article",
+			jsonLd: buildDocsJsonLd({ title: pageTitle, description, path }),
+		});
 	},
 	component: Page,
 	loader: async ({ params }) => {

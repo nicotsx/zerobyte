@@ -151,6 +151,7 @@
       "name": "docs",
       "dependencies": {
         "@base-ui/react": "^1.9.0",
+        "@fontsource-variable/geist": "^5.3.0",
         "@fontsource-variable/jetbrains-mono": "^5.3.0",
         "@phosphor-icons/react": "^2.1.10",
         "@tailwindcss/vite": "^4.3.5",
@@ -176,6 +177,7 @@
       },
       "devDependencies": {
         "@cloudflare/vite-plugin": "^1.70.1",
+        "@playwright/test": "^1.65.1",
         "@tailwindcss/typography": "^0.5.20",
         "@tanstack/devtools-vite": "^0.8.7",
         "@testing-library/dom": "^10.4.2",
@@ -437,6 +439,8 @@
     "@floating-ui/react-dom": ["@floating-ui/react-dom@2.1.9", "", { "dependencies": { "@floating-ui/dom": "^1.8.0" }, "peerDependencies": { "react": ">=16.8.0", "react-dom": ">=16.8.0" } }, "sha512-JDjEFGCpImxDCA7JJKviA0M9+RtmJdj0m/NVU5IMgBK+AmZouAQQ7/+2GLH0GXXY0YMw9oXPB8hKdbPYg5QLYg=="],
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.12", "", {}, "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="],
+
+    "@fontsource-variable/geist": ["@fontsource-variable/geist@5.3.0", "", {}, "sha512-j0m+vLQuG5XAYoHtGCVu0spvlGreR3EzpECUVzkFmI1mTVnAO38l/NEPDCFgZ177JxzYJCLSmTQibIiYPilGrA=="],
 
     "@fontsource-variable/google-sans-code": ["@fontsource-variable/google-sans-code@5.3.2", "", {}, "sha512-kW4RcfoTTObtUWAhlh6hzs8LCDsBNLwVRPqjUIKMkEiabfR3SRGP0Y6erFKd9k1yaRppTSCLSVkxhPKpEW3QPg=="],
 
