@@ -304,6 +304,33 @@ Each assignment is independent. One schedule can send failures to Email, warning
 | Mobile-first personal alerting           | `failure` to Telegram, ntfy, Gotify, or Pushover                         |
 | Feed another incident or workflow system | `failure` and optionally `warning` to Generic Webhook                    |
 
+## Heartbeat monitoring (missed backups)
+
+Notifications are sent when Zerobyte runs a backup. If Zerobyte itself is down, the host is off or a schedule was disabled by mistake, no backup runs and nothing is sent. A heartbeat monitoring service, such as Watchgoose, covers that case: Zerobyte pings a URL on every run, and the service alerts you when the expected ping does not arrive on time or reports a failure.
+
+Create three **Generic Webhook** destinations, one per signal, and route each one to its event on the backup schedule. With Watchgoose the URLs look like this:
+
+| Destination       | Webhook URL                                | Method | Route to event       |
+| ----------------- | ------------------------------------------ | ------ | -------------------- |
+| `Heartbeat start` | `https://watchgoose.com/ping/<uuid>/start` | `POST` | `start`              |
+| `Heartbeat ok`    | `https://watchgoose.com/ping/<uuid>`       | `POST` | `success`, `warning` |
+| `Heartbeat fail`  | `https://watchgoose.com/ping/<uuid>/fail`  | `POST` | `failure`            |
+
+The notification text, including the error on failure, is sent as the request body and shows up in the check's history. Route `warning` to the fail URL instead if warnings should alert you too.
+
+Add the service origin to `WEBHOOK_ALLOWED_ORIGINS`:
+
+```yaml compose.yaml
+environment:
+  - WEBHOOK_ALLOWED_ORIGINS=https://watchgoose.com
+```
+
+Run the backup once by hand and confirm that the check shows as up. A new check only starts watching for missed runs after its first success ping.
+
+<Callout type="warn">
+	Use notifications rather than [backup webhooks](/docs/guides/backup-webhooks) for heartbeat pings. A failed pre-backup webhook stops the backup, so an outage at the monitoring service would also stop your backups.
+</Callout>
+
 ## Related docs
 
 - [Backups](/docs/concepts/backups)
