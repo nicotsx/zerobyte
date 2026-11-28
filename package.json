@@ -38,6 +38,7 @@
 		"test:client": "dotenv run -f .env.test -- bunx --bun vitest run --project client",
 		"test": "dotenv run -f .env.test -- bunx --bun vitest run && bun run --cwd apps/agent test && bun run --cwd packages/core test",
 		"test:e2e": "NODE_ENV=test dotenv run -f .env.local -- bunx --bun playwright test",
+		"test:e2e:agent-update": "bun e2e/helpers/run-agent-update.ts",
 		"test:e2e:auth": "bunx --bun playwright test --config playwright.auth.config.ts",
 		"test:e2e:passkeys": "bunx --bun playwright test --config playwright.auth.config.ts 0008-passkeys",
 		"test:e2e:ui": "NODE_ENV=test dotenv run -f .env.local -- bunx --bun playwright test --ui",
