@@ -45,6 +45,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats, isDoctorRun
 
 	const config = repository.config as RepositoryConfig;
 	const hasLocalPath = Boolean(effectiveLocalPath);
+	const hasStorageClass = Boolean(config.storageClass);
 	const hasCaCert = Boolean(config.cacert);
 	const hasInsecureTlsConfig = config.insecureTls !== undefined;
 
@@ -110,6 +111,7 @@ export const RepositoryInfoTabContent = ({ repository, initialStats, isDoctorRun
 							mono
 						/>
 					)}
+					{hasStorageClass && <ConfigRow icon={<Archive className="h-4 w-4" />} label="Storage Class" value={config.storageClass!} mono />}
 					<ConfigRow
 						icon={<Archive className="h-4 w-4" />}
 						label="Compression Mode"
