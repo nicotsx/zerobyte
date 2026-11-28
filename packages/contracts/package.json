@@ -53,7 +53,7 @@
 		"@sigstore/tuf": "5.0.1",
 		"@sigstore/verify": "4.1.4",
 		"@zerobyte/core": "workspace:*",
-		"asn1js": "3.1.0",
+		"asn1js": "4.1.0",
 		"effect": "^4.1.7",
 		"zod": "^4.6.7"
 	},
