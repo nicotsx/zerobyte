@@ -17,9 +17,17 @@ async function json<T>(response: APIResponse): Promise<T> {
 
 test("a systemd agent updates from Machines and runs its next backup", async ({ page }) => {
 	test.setTimeout(180_000);
-	const container = process.env.E2E_AGENT_UPDATE_CONTAINER!;
-	const initial = process.env.E2E_AGENT_UPDATE_INITIAL!;
-	const target = process.env.E2E_AGENT_UPDATE_TARGET!;
+	const {
+		E2E_AGENT_UPDATE_ORIGIN: origin,
+		E2E_AGENT_UPDATE_CONTAINER: container,
+		E2E_AGENT_UPDATE_INITIAL: initial,
+		E2E_AGENT_UPDATE_TARGET: target,
+		E2E_AGENT_UPDATE_DIGEST: digest,
+	} = process.env;
+	if (!origin || !container || !initial || !target || !digest) {
+		throw new Error("Missing agent update test configuration. Run `bun run test:e2e:agent-update`.");
+	}
+
 	const name = "Update test machine";
 	const service = "zerobyte-agent.service";
 	const docker = (args: string[], input?: string) =>
@@ -63,9 +71,9 @@ test("a systemd agent updates from Machines and runs its next backup", async ({ 
 		],
 		`${token}\n`,
 	);
-	const mainPid = () => docker(["systemctl", "show", service, "--property=MainPID", "--value"]);
+	const mainPid = () => Number(docker(["systemctl", "show", service, "--property=MainPID", "--value"]));
 	const oldPid = mainPid();
-	expect(Number(oldPid)).toBeGreaterThan(0);
+	expect(oldPid).toBeGreaterThan(0);
 
 	await gotoAndWaitForAppReady(page, "/settings?scope=organization#machines");
 	const row = page.getByRole("listitem").filter({ has: page.getByRole("heading", { name, exact: true }) });
@@ -80,12 +88,17 @@ test("a systemd agent updates from Machines and runs its next backup", async ({ 
 		timeout: 90_000,
 	});
 	await expect(row.getByText(`Agent ${target}`)).toBeVisible();
-	expect(docker(["systemctl", "is-active", service])).toBe("active");
-	expect(Number(mainPid())).toBeGreaterThan(0);
-	expect(mainPid()).not.toBe(oldPid);
-	expect(docker(["sha256sum", "/usr/local/bin/zerobyte-agent"]).split(" ")[0]).toBe(
-		process.env.E2E_AGENT_UPDATE_DIGEST,
-	);
+	await expect.poll(() => docker(["systemctl", "show", service, "--property=ActiveState", "--value"])).toBe("active");
+	await expect
+		.poll(
+			() => {
+				const pid = mainPid();
+				return pid > 0 && pid !== oldPid;
+			},
+			{ message: "systemd should report a new agent process" },
+		)
+		.toBe(true);
+	expect(docker(["sha256sum", "/usr/local/bin/zerobyte-agent"]).split(/\s+/, 1)[0]).toBe(digest);
 
 	const agents = await json<ListAgentsResponse>(await page.request.get("/api/v1/agents"));
 	const updated = agents.find(({ id }) => id === agent.id);
