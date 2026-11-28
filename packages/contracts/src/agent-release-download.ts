@@ -1,4 +1,5 @@
-import { Cause, Data, Effect, Stream } from "effect";
+import { Data, Effect, Stream } from "effect";
+import { fetchScopedHttpResponse } from "@zerobyte/core/node";
 import {
 	AGENT_RELEASE_ATTESTATION_ASSET,
 	AGENT_RELEASE_ATTESTATION_MAX_BYTES,
@@ -13,81 +14,24 @@ export class ReleaseVerificationError extends Data.TaggedError("ReleaseVerificat
 
 const RELEASE_TIMEOUT_MS = 30_000;
 
+const toReleaseError = (error: Effect.Error<ReturnType<typeof fetchScopedHttpResponse>>) =>
+	error._tag === "HttpTransportError"
+		? new ReleaseNetworkError({ cause: error.cause })
+		: new ReleaseVerificationError({ cause: error.message });
+
 export const streamAgentReleaseAsset = (url: URL, maxBytes: number) =>
 	Stream.unwrap(
 		Effect.gen(function* () {
-			if (!Number.isSafeInteger(maxBytes) || maxBytes < 0) {
-				return yield* new ReleaseVerificationError({ cause: "Invalid release asset size limit" });
-			}
-
-			const controller = new AbortController();
-			let body: ReadableStream<Uint8Array> | null = null;
-			let reader: Pick<ReadableStreamDefaultReader<Uint8Array>, "cancel" | "releaseLock"> | undefined;
-			let finished = false;
-
-			yield* Effect.addFinalizer(() =>
-				Effect.sync(() => {
-					controller.abort();
-
-					// Cancellation may stall, so release the lock without waiting for it.
-					if (!finished) void (reader ?? body)?.cancel().catch(() => {});
-					reader?.releaseLock();
-				}),
-			);
-
-			const { response, stream } = yield* Effect.tryPromise({
-				try: async () => {
-					const response = await fetchAgentReleaseAsset(url, controller.signal);
-					if (controller.signal.aborted) {
-						void response.body?.cancel().catch(() => {});
-						controller.signal.throwIfAborted();
-					}
-
-					const stream: ReadableStream<Uint8Array> | null = response.body;
-					body = stream;
-					return { response, stream };
-				},
-				catch: (cause) => new ReleaseNetworkError({ cause }),
-			});
+			const { response, body } = yield* fetchScopedHttpResponse(
+				(signal) => fetchAgentReleaseAsset(url, signal),
+				maxBytes,
+			).pipe(Effect.mapError(toReleaseError));
 
 			if (response.status === 404 || response.status === 410) return yield* new ReleaseAssetMissing({ url });
 			if (!response.ok)
 				return yield* new ReleaseNetworkError({ cause: `HTTP ${response.status} for ${url.href}` });
-			if (!stream || Number(response.headers.get("content-length")) > maxBytes) {
-				return yield* new ReleaseVerificationError({ cause: "Missing body or invalid release asset size" });
-			}
 
-			const activeReader = yield* Effect.try({
-				try: () => {
-					const acquired = stream.getReader();
-					reader = acquired;
-					return acquired;
-				},
-				catch: (cause) => new ReleaseNetworkError({ cause }),
-			});
-			let length = 0;
-
-			return Stream.fromPull(
-				Effect.succeed(
-					Effect.gen(function* () {
-						const chunk = yield* Effect.tryPromise({
-							try: () => activeReader.read(),
-							catch: (cause) => new ReleaseNetworkError({ cause }),
-						});
-						if (chunk.done) {
-							finished = true;
-							return yield* Cause.done();
-						}
-
-						length += chunk.value.byteLength;
-						if (length > maxBytes) {
-							return yield* new ReleaseVerificationError({ cause: "Release asset exceeds size limit" });
-						}
-
-						return [chunk.value] as const;
-					}),
-				),
-			);
+			return body.pipe(Stream.mapError(toReleaseError));
 		}),
 	);
 

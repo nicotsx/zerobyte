@@ -1,5 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { z } from "zod";
+import { useOrganizationContext } from "~/client/hooks/use-org-context";
+import { usePermissions } from "~/client/hooks/use-permissions";
 import { MachineSetupPage } from "~/client/modules/settings/routes/machine-setup";
 
 export const Route = createFileRoute("/(dashboard)/settings/machines/connect")({
@@ -19,5 +21,15 @@ export const Route = createFileRoute("/(dashboard)/settings/machines/connect")({
 function RouteComponent() {
 	const { agentId } = Route.useSearch();
 
-	return <MachineSetupPage key={agentId ?? "new"} agentId={agentId} />;
+	const { activeOrganization } = useOrganizationContext();
+	const permissions = usePermissions();
+	if (permissions.activeOrganizationId !== activeOrganization.id || !permissions.can("agents.manage")) return null;
+
+	return (
+		<MachineSetupPage
+			key={JSON.stringify([activeOrganization.id, agentId])}
+			agentId={agentId}
+			organizationId={activeOrganization.id}
+		/>
+	);
 }

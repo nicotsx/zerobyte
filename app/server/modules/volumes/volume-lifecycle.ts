@@ -10,6 +10,7 @@ import type { ShortId } from "../../utils/branded";
 import { Effect, Result } from "effect";
 import { LOCAL_AGENT_ID } from "../agents/constants";
 import { createVolumeBackend } from "./volume-host";
+import type { VolumeBackendResult } from "./volume-host/types";
 import { decryptVolumeConfig } from "./volume-config-secrets";
 import { assembleVolumeExecutionSource, probeSource } from "./volume-execution-source";
 import { findVolume } from "./volume-queries";
@@ -96,7 +97,7 @@ const unmountVolume = async (shortId: ShortId, options?: { persistStatus?: boole
 	return { error, status };
 };
 
-const checkVolumeHealth = async (volume: Volume, signal?: AbortSignal) => {
+const checkVolumeHealth = async (volume: Volume, signal?: AbortSignal): Promise<VolumeBackendResult> => {
 	signal?.throwIfAborted();
 
 	const organizationId = getOrganizationId();
@@ -117,7 +118,8 @@ const checkVolumeHealth = async (volume: Volume, signal?: AbortSignal) => {
 		return { status, error };
 	}
 
-	const { error, status } = await runVolumeBackendOperation(volume, "checkHealth");
+	const health = await runVolumeBackendOperation(volume, "checkHealth");
+	const { error, status } = health;
 
 	if (status !== volume.status) {
 		serverEvents.emit("volume:status_changed", { organizationId, volumeName: volume.name, status });
@@ -128,14 +130,15 @@ const checkVolumeHealth = async (volume: Volume, signal?: AbortSignal) => {
 		.set({ lastHealthCheck: Date.now(), status, lastError: error ?? null })
 		.where(and(eq(volumesTable.id, volume.id), eq(volumesTable.organizationId, organizationId)));
 
-	return { status, error };
+	return health;
 };
 
 const checkHealth = async (shortId: ShortId, signal?: AbortSignal) => {
 	const volume = await findVolume(shortId);
 	if (!volume) throw new NotFoundError("Volume not found");
 
-	return checkVolumeHealth(volume, signal);
+	const { status, error } = await checkVolumeHealth(volume, signal);
+	return { status, error };
 };
 
 const ensureHealthyVolume = async (volume: Volume, signal?: AbortSignal): Promise<EnsureHealthyVolumeResult> => {
@@ -156,7 +159,7 @@ const ensureHealthyVolume = async (volume: Volume, signal?: AbortSignal): Promis
 
 	let failureReason = volume.lastError ?? "Volume health check failed";
 
-	if (volume.status !== "error") {
+	if (volume.status !== "error" || volume.type === "rclone") {
 		const health = await checkVolumeHealth(volume, signal);
 		signal?.throwIfAborted();
 
@@ -165,6 +168,7 @@ const ensureHealthyVolume = async (volume: Volume, signal?: AbortSignal): Promis
 		}
 
 		failureReason = health.error ?? failureReason;
+		if (health.inconclusive) return { ready: false, reason: failureReason };
 	}
 
 	if (!volume.autoRemount) {

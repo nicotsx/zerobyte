@@ -31,6 +31,7 @@ import { getAgentUpdateRelease } from "../agent-update-release";
 import { agentUpdates } from "../agent-updates";
 import { agentsService } from "../agents.service";
 import { createAgentController } from "../controller/server";
+import { getAgentRuntimeState } from "../helpers/runtime-state";
 import { validateRemoteAgentToken } from "../helpers/tokens";
 
 vi.mock("@zerobyte/contracts/agent-release", async (importOriginal) => ({
@@ -105,11 +106,17 @@ const prepareAgent = async (protocolVersion: number | undefined, version = "1.3.
 	return { identity, token, enrollment };
 };
 
-const queue = (agentId: string, headers = owner.headers, targetTag = config.appVersion, signal?: AbortSignal) =>
+const queue = (
+	agentId: string,
+	headers = owner.headers,
+	targetTag = config.appVersion,
+	credentialVersion = 2,
+	signal?: AbortSignal,
+) =>
 	app.request(`/api/v1/agents/${agentId}/update`, {
 		method: "POST",
 		headers: { ...headers, "content-type": "application/json" },
-		body: JSON.stringify({ targetTag }),
+		body: JSON.stringify({ targetTag, credentialVersion }),
 		signal,
 	});
 
@@ -170,7 +177,7 @@ test("queues a verified exact target and delivers it offline, fencing attempts a
 
 	const retry = await (await queue(identity.agentId)).json();
 	expect(retry.request.id).not.toBe(attempt.requestId);
-	expect((await maintenance(token, failure)).status).toBe(409);
+	expect((await maintenance(token, failure)).status).toBe(200);
 	await agentsService.markAgentOnline(identity, {
 		agentVersion: "1.3.0",
 		protocolVersion: AGENT_PROTOCOL_VERSION,
@@ -189,6 +196,33 @@ test("queues a verified exact target and delivers it offline, fencing attempts a
 	await agentsService.rotateRemoteAgentToken(owner.organizationId, identity.agentId);
 	expect((await maintenance(token)).status).toBe(401);
 	expect(() => agentUpdates.maintainAgent(identity, { action: "poll" })).toThrow("Invalid agent credential");
+});
+
+test("rejects a confirmation captured before the machine credential was replaced", async () => {
+	config.appVersion = "v1.41.0";
+	const { fetchRelease } = serveRelease();
+	const { identity } = await prepareAgent(AGENT_PROTOCOL_VERSION, "1.3.0", "systemd");
+	const original = await agentsService.getAgent(identity.agentId);
+	expect(original?.credentialVersion).toBe(identity.credentialVersion);
+
+	const rotation = await agentsService.rotateRemoteAgentToken(owner.organizationId, identity.agentId);
+	const { token } = await agentsService.exchangeEnrollmentToken(rotation.token);
+	const replacement = (await validateRemoteAgentToken(token))!;
+	await agentsService.markAgentOnline(replacement, original!.capabilities);
+
+	const staleRequest = await queue(identity.agentId, owner.headers, config.appVersion, identity.credentialVersion);
+	expect(staleRequest.status).toBe(409);
+	expect(fetchRelease).not.toHaveBeenCalled();
+	expect((await agentsService.getAgent(identity.agentId))?.updateRequest).toBeNull();
+
+	const currentRequest = await queue(
+		identity.agentId,
+		owner.headers,
+		config.appVersion,
+		replacement.credentialVersion,
+	);
+	expect(currentRequest.status).toBe(200);
+	expect((await agentsService.getAgent(identity.agentId))?.updateRequest?.status).toBe("queued");
 });
 
 test.each([
@@ -296,7 +330,7 @@ test("aborting a queue request leaves a shared release lookup running for anothe
 	});
 
 	const caller = new AbortController();
-	const abandoned = queue(identity.agentId, owner.headers, release.tag, caller.signal);
+	const abandoned = queue(identity.agentId, owner.headers, release.tag, identity.credentialVersion, caller.signal);
 	const downloadSignal = await started.promise;
 	const concurrent = Effect.runPromise(getAgentUpdateRelease(release.tag));
 
@@ -317,7 +351,13 @@ test("an already cancelled queue request does not write when the release is cach
 
 	expect(await Effect.runPromise(getAgentUpdateRelease(release.tag))).toEqual(release);
 
-	const response = await queue(identity.agentId, owner.headers, release.tag, AbortSignal.abort());
+	const response = await queue(
+		identity.agentId,
+		owner.headers,
+		release.tag,
+		identity.credentialVersion,
+		AbortSignal.abort(),
+	);
 	expect(response.ok).toBe(false);
 	expect((await agentsService.getAgent(identity.agentId))?.updateRequest).toBeNull();
 	expect(fetchRelease).toHaveBeenCalledOnce();
@@ -442,30 +482,6 @@ test("uses one release download deadline across redirects and body reads", async
 	} finally {
 		vi.useRealTimers();
 	}
-});
-
-test.each(["started", "failed"])("completes a %s update on readiness and drops attempt fields", async (status) => {
-	config.appVersion = status === "started" ? "v1.29.0" : "v1.30.0";
-	const { release } = serveRelease();
-	const { identity, token } = await prepareAgent(AGENT_PROTOCOL_VERSION, "1.3.0", "systemd");
-	const queued = await (await queue(identity.agentId)).json();
-
-	const attempt = { requestId: queued.request.id, attemptId: Bun.randomUUIDv7() };
-	expect((await maintenance(token, { ...attempt, action: "start" })).status).toBe(200);
-	if (status === "failed") expect((await maintenance(token, { ...attempt, action: "fail" })).status).toBe(200);
-
-	await agentsService.markAgentOnline(identity, {
-		agentVersion: release.tag,
-		protocolVersion: release.protocolVersion,
-	});
-
-	expect((await agentsService.getAgent(identity.agentId))?.updateRequest).toEqual({
-		requestId: queued.request.id,
-		requestedAt: queued.request.requestedAt,
-		target: release,
-		status: "completed",
-	});
-	expect(await (await maintenance(token)).json()).toEqual({ update: null });
 });
 
 test("suppresses offers for unknown and newer protocols and never downgrades", async () => {
@@ -773,15 +789,28 @@ test("bounds abandoned attempts from their first start and preserves the pinned 
 	const { update: replacement } = await (await maintenance(token)).json();
 	expect(replacement).toEqual({ requestId: expect.any(String), status: "queued", target: release });
 	expect(replacement.requestId).not.toBe(attempt.requestId);
+	expect((await agentsService.getAgent(identity.agentId))?.updateRequest?.requestedAt).toBe(startTime);
+	expect((await maintenance(token, attempt)).status).toBe(409);
+	expect((await maintenance(token, { ...attempt, action: "failPreparation" })).status).toBe(409);
 
 	const retry = { action: "start", requestId: replacement.requestId, attemptId: Bun.randomUUIDv7() };
 	clock.mockReturnValue(startTime + deadline);
 	expect((await maintenance(token, retry)).status).toBe(200);
 	expect((await maintenance(token, attempt)).status).toBe(409);
-	expect((await maintenance(token, { ...attempt, action: "fail" })).status).toBe(409);
-	expect((await maintenance(token, { ...retry, attemptId: attempt.attemptId })).status).toBe(409);
-	expect((await maintenance(token, { ...retry, action: "fail", attemptId: attempt.attemptId })).status).toBe(409);
+	expect(await (await maintenance(token, { ...attempt, action: "fail" })).json()).toEqual({ update: null });
+	expect((await maintenance(token, { ...retry, action: "fail", attemptId: Bun.randomUUIDv7() })).status).toBe(409);
 	expect(await (await maintenance(token)).json()).toMatchObject({ update: { ...replacement, status: "started" } });
+
+	elapsed.mockReturnValue(deadline + 30 * 60_000);
+	const { update: renewedAgain } = await (await maintenance(token)).json();
+	expect(renewedAgain).toEqual({ requestId: expect.any(String), status: "queued", target: release });
+	expect([attempt.requestId, retry.requestId]).not.toContain(renewedAgain.requestId);
+	expect((await maintenance(token, attempt)).status).toBe(409);
+	expect((await maintenance(token, { ...attempt, action: "failPreparation" })).status).toBe(409);
+	expect(
+		(await maintenance(token, { ...retry, requestId: renewedAgain.requestId, attemptId: Bun.randomUUIDv7() }))
+			.status,
+	).toBe(200);
 });
 
 test("bounds a recovered attempt by server uptime even if its wall timestamp is in the future", async () => {
@@ -949,5 +978,423 @@ test.each([AGENT_PROTOCOL_VERSION, SUPPORTED_AGENT_PROTOCOL_MIN_VERSION - 1])(
 			config.flags.allowInsecureAgentHttp = allowInsecure;
 			await Effect.runPromise(controller.stop);
 		}
+	},
+);
+
+test("final authorization waits for the controller to resolve the tracked backup", async () => {
+	const { release } = serveRelease();
+	const { identity, token } = await prepareAgent(AGENT_PROTOCOL_VERSION, "1.3.0", "systemd");
+	const queued = await (await queue(identity.agentId)).json();
+	const start = { action: "start", requestId: queued.request.id, attemptId: Bun.randomUUIDv7() };
+
+	const runs = getAgentRuntimeState().activeBackupsByScheduleId;
+	const run = {
+		agentId: identity.agentId,
+		scheduleId: -1,
+		scheduleShortId: "schedule",
+		jobId: "terminal-in-inbox",
+		onProgress: vi.fn(),
+		resolve: vi.fn(),
+		cancellationRequested: false,
+	};
+
+	runs.set(-1, run);
+	try {
+		expect((await maintenance(token, start)).status).toBe(409);
+		expect((await agentsService.getAgent(identity.agentId))?.updateRequest?.status).toBe("queued");
+		runs.set(-1, { ...run, agentId: "another-agent" });
+		expect(await (await maintenance(token, start)).json()).toEqual({
+			update: { requestId: start.requestId, status: "started", target: release },
+		});
+		runs.set(-1, run);
+		expect((await maintenance(token, start)).status).toBe(409);
+	} finally {
+		runs.delete(-1);
+	}
+	expect((await maintenance(token, start)).status).toBe(200);
+});
+
+test("a preparation failure settles the exact queued request without starting a lease", async () => {
+	const { release } = serveRelease();
+	const { identity, token } = await prepareAgent(AGENT_PROTOCOL_VERSION, "1.3.0", "systemd");
+	const queued = await (await queue(identity.agentId)).json();
+	const first = { action: "start", requestId: queued.request.id, attemptId: Bun.randomUUIDv7() };
+	const elapsed = vi.spyOn(performance, "now").mockReturnValue(0);
+
+	expect((await maintenance(token, first)).status).toBe(200);
+	expect((await maintenance(token, { ...first, action: "failPreparation" })).status).toBe(409);
+
+	elapsed.mockReturnValue(30 * 60 * 1000);
+	const { update } = await (await maintenance(token)).json();
+	expect(update).toEqual({ status: "queued", target: release, requestId: expect.any(String) });
+	expect(update.requestId).not.toBe(first.requestId);
+
+	const failure = { action: "failPreparation", requestId: update.requestId, attemptId: Bun.randomUUIDv7() };
+	expect((await maintenance(token, { ...failure, attemptId: first.attemptId })).status).toBe(410);
+	expect((await maintenance(token, { ...failure, requestId: Bun.randomUUIDv7() })).status).toBe(409);
+	expect(await (await maintenance(token, failure)).json()).toEqual({ update: null });
+	expect((await maintenance(token, failure)).status).toBe(200);
+	expect(agentUpdates.isBackupDispatchFenced(identity.agentId)).toBe(false);
+	expect((await agentsService.getAgent(identity.agentId))?.updateRequest).toMatchObject({
+		status: "failed",
+		requestId: failure.requestId,
+		attemptId: failure.attemptId,
+	});
+	expect(await (await maintenance(token)).json()).toEqual({ update: null });
+});
+
+test.each(["unconfirmed", "confirmed", "restored snapshot"])(
+	"fences backup dispatch across lease expiry (%s)",
+	async (state) => {
+		const confirmed = state !== "unconfirmed";
+		const restored = state === "restored snapshot";
+		const clock = vi.spyOn(Date, "now");
+		const elapsed = vi.spyOn(performance, "now").mockReturnValue(0);
+		const startedAt = Date.now();
+		clock.mockReturnValue(startedAt);
+		const { release } = serveRelease();
+		const { identity, token } = await prepareAgent(AGENT_PROTOCOL_VERSION, "1.3.0", "systemd");
+		const queued = await (await queue(identity.agentId)).json();
+		const attempt = { requestId: queued.request.id, attemptId: Bun.randomUUIDv7() };
+		const confirm = { action: "confirm", ...attempt };
+		const accept = { action: "accept", ...attempt };
+
+		const originalEnvironment = config.environment;
+		const originalTrustProxy = config.trustProxy;
+		config.environment = "development";
+		config.trustProxy = true;
+
+		const controller = createAgentController(vi.fn());
+		const received: string[] = [];
+		const Socket = globalThis.WebSocket as unknown as {
+			new (url: string, options: Bun.WebSocketOptions): WebSocket;
+		};
+		const connect = async (agentVersion: string, updateTrial?: typeof attempt & { locallyAccepted?: true }) => {
+			const socket = new Socket(`${controller.getControllerUrl()}/api/v1/agents/connect`, {
+				headers: { authorization: `Bearer ${token}`, "x-forwarded-proto": "https" },
+			});
+			socket.addEventListener("message", (event) => received.push(String(event.data)));
+			await new Promise<void>((resolve, reject) => {
+				socket.addEventListener("open", () => resolve(), { once: true });
+				socket.addEventListener("error", () => reject(new Error("Could not connect trial socket")), {
+					once: true,
+				});
+			});
+			socket.send(
+				JSON.stringify({
+					type: "agent.ready",
+					payload: {
+						agentId: identity.agentId,
+						protocolVersion: AGENT_PROTOCOL_VERSION,
+						hostname: "remote",
+						platform: "linux",
+						capabilities: {
+							agentVersion,
+							updateTrial,
+							selfUpdate: "systemd",
+							trustedRoots: [{ id: "root", label: "Root", canBackup: true }],
+						},
+					},
+				}),
+			);
+			expect(await Effect.runPromise(controller.waitForReady(identity.agentId, "1 second"))).toBe(true);
+		};
+
+		const dispatch = () =>
+			Effect.runPromise(
+				controller.sendBackup(identity.agentId, {
+					jobId: "job",
+					scheduleId: "schedule",
+					organizationId: owner.organizationId,
+					source: { rootId: "root", relativePath: "" },
+					repositoryConfig: { backend: "local", path: "/tmp/repository" },
+					options: {
+						oneFileSystem: false,
+						excludePatterns: null,
+						excludeIfPresent: null,
+						includePaths: null,
+						includePatterns: null,
+						customResticParams: null,
+						compressionMode: "auto",
+					},
+					runtime: { password: "password" },
+					webhooks: { pre: null, post: null },
+					webhookAllowedOrigins: [],
+					webhookTimeoutMs: 60_000,
+				}),
+			);
+
+		try {
+			await Effect.runPromise(controller.start);
+			await connect("1.3.0");
+			expect(await dispatch()).toBe(true);
+			await vi.waitFor(() =>
+				expect(received.some((message) => JSON.parse(message).type === "backup.run")).toBe(true),
+			);
+			expect((await maintenance(token, { action: "start", ...attempt })).status).toBe(200);
+			const startedSnapshot = (await agentsService.getAgent(identity.agentId))!.updateRequest;
+			expect(await dispatch()).toBe(false);
+			expect((await maintenance(token, confirm)).status).toBe(409);
+
+			await connect(release.tag);
+			expect(await dispatch()).toBe(false);
+			expect((await maintenance(token, confirm)).status).toBe(409);
+			await connect("1.3.0", attempt);
+			expect((await maintenance(token, confirm)).status).toBe(409);
+			await connect(release.tag, { ...attempt, attemptId: Bun.randomUUIDv7() });
+			expect((await maintenance(token, confirm)).status).toBe(409);
+			clock.mockReturnValue(startedAt - 60 * 60 * 1000);
+			await connect(release.tag, attempt);
+			expect((await agentsService.getAgent(identity.agentId))?.lastReadyAt).toBeLessThan(startedAt);
+			expect((await maintenance(token, accept)).status).toBe(409);
+			if (confirmed) {
+				expect(await (await maintenance(token, confirm)).json()).toEqual({ update: null });
+				expect(await (await maintenance(token, confirm)).json()).toEqual({ update: null });
+			}
+			elapsed.mockReturnValue(30 * 60 * 1000);
+			expect(await dispatch()).toBe(false);
+			expect((await maintenance(token, confirm)).status).toBe(409);
+			expect(await (await maintenance(token)).json()).toMatchObject({ update: { requestId: attempt.requestId } });
+
+			await Effect.runPromise(controller.stop);
+			expect(agentUpdates.isBackupDispatchFenced(identity.agentId)).toBe(false);
+			expect((await maintenance(token, accept)).status).toBe(409);
+
+			if (confirmed) {
+				expect(await (await maintenance(token)).json()).toMatchObject({
+					update: { requestId: attempt.requestId },
+				});
+			}
+
+			if (restored) {
+				db.update(agentsTable)
+					.set({ updateRequest: startedSnapshot })
+					.where(eq(agentsTable.id, identity.agentId))
+					.run();
+			}
+
+			await Effect.runPromise(controller.start);
+			await connect(release.tag, attempt);
+			expect(await dispatch()).toBe(false);
+			if (restored) {
+				expect((await maintenance(token, accept)).status).toBe(409);
+				await connect(release.tag, { ...attempt, locallyAccepted: true });
+				expect(await dispatch()).toBe(false);
+			}
+			expect((await maintenance(token, confirm)).status).toBe(409);
+			expect((await maintenance(token, { ...accept, attemptId: Bun.randomUUIDv7() })).status).toBe(410);
+			if (confirmed) {
+				expect(await (await maintenance(token, accept)).json()).toEqual({ update: null });
+				await connect(release.tag, { ...attempt, locallyAccepted: true });
+				expect(await (await maintenance(token, accept)).json()).toEqual({ update: null });
+				const agent = (await agentsService.getAgent(identity.agentId))!;
+				expect(agentUpdates.presentUpdate(agent, null).request?.status).toBe("completed");
+				expect((await maintenance(token, { action: "fail", ...attempt })).status).toBe(410);
+			} else {
+				expect((await maintenance(token, accept)).status).toBe(409);
+				await connect("1.3.0");
+				expect(await dispatch()).toBe(true);
+				await connect(release.tag, attempt);
+				expect(await dispatch()).toBe(false);
+				expect(await (await maintenance(token, { action: "fail", ...attempt })).json()).toEqual({
+					update: null,
+				});
+			}
+			expect(await dispatch()).toBe(true);
+		} finally {
+			await Effect.runPromise(controller.stop);
+			config.environment = originalEnvironment;
+			config.trustProxy = originalTrustProxy;
+		}
+	},
+);
+
+test("lets a reconnected machine update again after restoring an expired confirmation", async () => {
+	config.appVersion = "v1.45.0";
+	const { release, fetchRelease } = serveRelease();
+	const { identity, token } = await prepareAgent(AGENT_PROTOCOL_VERSION, "1.3.0", "systemd");
+	const elapsed = vi.spyOn(performance, "now").mockReturnValue(0);
+	const queued = await (await queue(identity.agentId)).json();
+	const attempt = { requestId: queued.request.id, attemptId: Bun.randomUUIDv7() };
+	const { capabilities } = (await agentsService.getAgent(identity.agentId))!;
+
+	expect((await maintenance(token, { action: "start", ...attempt })).status).toBe(200);
+	const upgraded = { ...capabilities, agentVersion: release.tag };
+	await agentsService.markAgentOnline(identity, { ...upgraded, updateTrial: attempt });
+	expect((await maintenance(token, { action: "confirm", ...attempt })).status).toBe(200);
+	const confirming = (await agentsService.getAgent(identity.agentId))!.updateRequest;
+	expect((await maintenance(token, { action: "accept", ...attempt })).status).toBe(200);
+
+	db.update(agentsTable).set({ updateRequest: confirming }).where(eq(agentsTable.id, identity.agentId)).run();
+	await agentsService.markAgentOffline(identity);
+	await agentsService.markAgentOnline(identity, upgraded);
+
+	config.appVersion = "v1.46.0";
+	fetchRelease.mockRestore();
+	serveRelease();
+	expect((await (await queue(identity.agentId)).json()).request.id).toBe(attempt.requestId);
+
+	elapsed.mockReturnValue(30 * 60_000);
+	const listed = await Effect.runPromise(agentsService.listOrganizationAgents(owner.organizationId));
+	expect(listed.find((agent) => agent.id === identity.agentId)?.update).toMatchObject({
+		targetTag: config.appVersion,
+		delivery: "remote",
+		request: { status: "superseded" },
+	});
+
+	const response = await queue(identity.agentId);
+	expect(response.status).toBe(200);
+	const renewed = await response.json();
+	expect(renewed.request).toMatchObject({ status: "queued", targetTag: config.appVersion });
+	expect(renewed.request.id).not.toBe(attempt.requestId);
+});
+
+test("returns a terminal response for acceptance after restoring before the attempt started", async () => {
+	serveRelease();
+	const { identity, token } = await prepareAgent(AGENT_PROTOCOL_VERSION, "1.3.0", "systemd");
+	const queued = await (await queue(identity.agentId)).json();
+	const accept = { action: "accept", requestId: queued.request.id, attemptId: Bun.randomUUIDv7() };
+
+	expect((await maintenance(token, accept)).status).toBe(410);
+	expect((await agentsService.getAgent(identity.agentId))?.updateRequest?.status).toBe("queued");
+
+	db.update(agentsTable).set({ updateRequest: null }).where(eq(agentsTable.id, identity.agentId)).run();
+
+	expect((await maintenance(token, accept)).status).toBe(410);
+});
+
+test.each(["current", "legacy"])(
+	"accepts rollback after lease renewal and allows a new request (%s)",
+	async (format) => {
+		const clock = vi.spyOn(Date, "now");
+		const elapsed = vi.spyOn(performance, "now").mockReturnValue(0);
+		const startedAt = Date.now();
+		clock.mockReturnValue(startedAt);
+		const { release } = serveRelease();
+		const { identity, token } = await prepareAgent(AGENT_PROTOCOL_VERSION, "1.3.0", "systemd");
+		const queued = await (await queue(identity.agentId)).json();
+		const attempt = { requestId: queued.request.id, attemptId: Bun.randomUUIDv7() };
+
+		expect((await maintenance(token, { action: "start", ...attempt })).status).toBe(200);
+		expect(agentUpdates.isBackupDispatchFenced(identity.agentId)).toBe(true);
+		elapsed.mockReturnValue(30 * 60 * 1000);
+		expect(agentUpdates.isBackupDispatchFenced(identity.agentId)).toBe(false);
+		expect((await maintenance(token, { action: "confirm", ...attempt })).status).toBe(409);
+
+		const { update: renewed } = await (await maintenance(token)).json();
+		expect(renewed).toEqual({ requestId: expect.any(String), status: "queued", target: release });
+		expect(renewed.requestId).not.toBe(attempt.requestId);
+
+		const currentRequestId = renewed.requestId;
+		if (format === "legacy") {
+			const oldRow = {
+				requestId: currentRequestId,
+				target: release,
+				requestedAt: startedAt,
+				status: "queued",
+				previousAttempt: { ...attempt, renewedRequestId: currentRequestId },
+			};
+
+			db.update(agentsTable)
+				.set({ updateRequest: sql`${JSON.stringify(oldRow)}` })
+				.where(eq(agentsTable.id, identity.agentId))
+				.run();
+			expect(await (await maintenance(token)).json()).toEqual({
+				update: { ...renewed, requestId: currentRequestId },
+			});
+		}
+
+		const failure = { action: "fail", ...attempt };
+		expect((await maintenance(token, { ...failure, requestId: currentRequestId })).status).toBe(409);
+		expect((await maintenance(token, { ...failure, attemptId: Bun.randomUUIDv7() })).status).toBe(409);
+		expect(await (await maintenance(token, failure)).json()).toEqual({ update: null });
+		expect((await agentsService.getAgent(identity.agentId))?.updateRequest?.status).toBe("failed");
+
+		const retry = await (await queue(identity.agentId)).json();
+		expect(retry.request.id).not.toBe(currentRequestId);
+		expect(await (await maintenance(token, failure)).json()).toEqual({ update: null });
+		expect(
+			(await maintenance(token, { action: "start", requestId: retry.request.id, attemptId: attempt.attemptId }))
+				.status,
+		).toBe(409);
+		expect(
+			(await maintenance(token, { action: "start", requestId: retry.request.id, attemptId: Bun.randomUUIDv7() }))
+				.status,
+		).toBe(200);
+	},
+);
+
+test.each([false, true])("acknowledges rollback across a release change (lease expired: %s)", async (expired) => {
+	const clock = vi.spyOn(Date, "now");
+	const elapsed = vi.spyOn(performance, "now").mockReturnValue(0);
+	const startedAt = Date.now();
+	clock.mockReturnValue(startedAt);
+	const { fetchRelease, release } = serveRelease();
+	const { identity, token } = await prepareAgent(AGENT_PROTOCOL_VERSION, "1.3.0", "systemd");
+	const queued = await (await queue(identity.agentId)).json();
+	const attempt = { requestId: queued.request.id, attemptId: Bun.randomUUIDv7() };
+	expect((await maintenance(token, { action: "start", ...attempt })).status).toBe(200);
+
+	const capabilities = (await agentsService.getAgent(identity.agentId))!.capabilities;
+	await agentsService.markAgentOnline(identity, { ...capabilities, agentVersion: release.tag, updateTrial: attempt });
+	expect((await maintenance(token, { action: "confirm", ...attempt })).status).toBe(200);
+
+	config.appVersion = expired ? "v1.41.0" : "v1.42.0";
+	fetchRelease.mockRestore();
+	serveRelease();
+	const failure = { action: "fail", ...attempt };
+	if (expired) elapsed.mockReturnValue(30 * 60 * 1000);
+	expect(agentUpdates.isBackupDispatchFenced(identity.agentId)).toBe(true);
+	expect(await (await maintenance(token, failure)).json()).toEqual({ update: null });
+
+	await agentsService.markAgentOnline(identity, capabilities);
+	const response = await queue(identity.agentId);
+	const next = await response.json();
+	expect(response.status, JSON.stringify(next)).toBe(200);
+	expect(next.request.targetTag).toBe(config.appVersion);
+	expect(await (await maintenance(token, failure)).json()).toEqual({ update: null });
+	expect(await (await maintenance(token)).json()).toMatchObject({ update: { requestId: next.request.id } });
+	expect(agentUpdates.isBackupDispatchFenced(identity.agentId)).toBe(false);
+});
+
+test.each(["same queued request", "no request", "replacement request"])(
+	"reconciles rollback after restoring a controller with %s",
+	async (snapshot) => {
+		serveRelease();
+		const { identity, token } = await prepareAgent(AGENT_PROTOCOL_VERSION, "1.3.0", "systemd");
+		expect((await queue(identity.agentId)).status).toBe(200);
+		const queued = (await agentsService.getAgent(identity.agentId))!.updateRequest!;
+		const attempt = { requestId: queued.requestId, attemptId: Bun.randomUUIDv7() };
+
+		expect((await maintenance(token, { action: "start", ...attempt })).status).toBe(200);
+
+		const restored =
+			snapshot === "no request"
+				? null
+				: {
+						...queued,
+						requestId: snapshot === "same queued request" ? queued.requestId : Bun.randomUUIDv7(),
+					};
+		db.update(agentsTable).set({ updateRequest: restored }).where(eq(agentsTable.id, identity.agentId)).run();
+
+		const fail = { action: "fail", ...attempt };
+		expect(await (await maintenance(token, fail)).json()).toEqual({ update: null });
+		expect(await (await maintenance(token, fail)).json()).toEqual({ update: null });
+		if (snapshot === "same queued request") {
+			expect((await agentsService.getAgent(identity.agentId))?.updateRequest).toMatchObject({
+				...attempt,
+				status: "failed",
+			});
+			expect((await maintenance(token, { action: "start", ...attempt })).status).toBe(409);
+		} else {
+			expect((await agentsService.getAgent(identity.agentId))?.updateRequest).toEqual(restored);
+		}
+		const next = await (await queue(identity.agentId)).json();
+		expect(next.request.id).not.toBe(attempt.requestId);
+		expect((await maintenance(token, { action: "accept", ...attempt })).status).toBe(410);
+		expect(
+			(await maintenance(token, { action: "start", requestId: next.request.id, attemptId: Bun.randomUUIDv7() }))
+				.status,
+		).toBe(200);
 	},
 );

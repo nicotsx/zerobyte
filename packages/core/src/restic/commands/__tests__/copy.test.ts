@@ -69,15 +69,52 @@ describe("copy command", () => {
 		expect(getArgs().slice(separatorIndex + 1)).toEqual(["--help"]);
 	});
 
-	test("defaults to 'latest' when no snapshotIds are provided", async () => {
-		const { getArgs } = setup();
+	test.each([
+		{
+			name: "concrete IDs",
+			snapshotIds: ["abc123", "def456", "ghi789"],
+			expectedSelectors: ["abc123", "def456", "ghi789"],
+			expectedTagArgs: [],
+		},
+		{
+			name: "omitted IDs",
+			snapshotIds: undefined,
+			expectedSelectors: ["latest"],
+			expectedTagArgs: ["--tag", "daily"],
+		},
+		{ name: "empty IDs", snapshotIds: [], expectedSelectors: ["latest"], expectedTagArgs: ["--tag", "daily"] },
+		{
+			name: "explicit latest",
+			snapshotIds: ["latest"],
+			expectedSelectors: ["latest"],
+			expectedTagArgs: ["--tag", "daily"],
+		},
+		{
+			name: "concrete IDs and latest",
+			snapshotIds: ["abc123", "latest"],
+			expectedSelectors: ["abc123", "latest"],
+			expectedTagArgs: ["--tag", "daily"],
+		},
+	])(
+		"passes the snapshot selectors and tag for $name",
+		async ({ snapshotIds, expectedSelectors, expectedTagArgs }) => {
+			const { getArgs } = setup();
 
-		await Effect.runPromise(copy(sourceConfig, destConfig, { organizationId: "org-1", tag: "daily" }, mockDeps));
+			await Effect.runPromise(
+				copy(sourceConfig, destConfig, { organizationId: "org-1", snapshotIds, tag: "daily" }, mockDeps),
+			);
 
-		const separatorIndex = getArgs().indexOf("--");
-		expect(separatorIndex).toBeGreaterThan(-1);
-		expect(getArgs().slice(separatorIndex + 1)).toEqual(["latest"]);
-	});
+			const args = getArgs();
+			const separatorIndex = args.indexOf("--");
+			expect(separatorIndex).toBeGreaterThan(-1);
+			expect(args.slice(separatorIndex + 1)).toEqual(expectedSelectors);
+
+			const flags = args.slice(0, separatorIndex);
+			const tagIndex = flags.indexOf("--tag");
+			const tagArgs = tagIndex === -1 ? [] : flags.slice(tagIndex, tagIndex + 2);
+			expect(tagArgs).toEqual(expectedTagArgs);
+		},
+	);
 
 	test("uses verbose text output and streams restic messages unchanged", async () => {
 		const { getArgs, getParams } = setup();
@@ -114,39 +151,6 @@ describe("copy command", () => {
 		expect(getArgs()).toContain("64");
 		expect(getArgs()).toContain("--no-cache");
 		expect(getArgs()).not.toContain("--ignore-inode");
-	});
-
-	test("passes multiple snapshot IDs after separator", async () => {
-		const { getArgs } = setup();
-
-		await Effect.runPromise(
-			copy(
-				sourceConfig,
-				destConfig,
-				{
-					organizationId: "org-1",
-					snapshotIds: ["abc123", "def456", "ghi789"],
-					tag: "daily",
-				},
-				mockDeps,
-			),
-		);
-
-		const separatorIndex = getArgs().indexOf("--");
-		expect(separatorIndex).toBeGreaterThan(-1);
-		expect(getArgs().slice(separatorIndex + 1)).toEqual(["abc123", "def456", "ghi789"]);
-	});
-
-	test("defaults to 'latest' when snapshotIds is empty array", async () => {
-		const { getArgs } = setup();
-
-		await Effect.runPromise(
-			copy(sourceConfig, destConfig, { organizationId: "org-1", snapshotIds: [], tag: "daily" }, mockDeps),
-		);
-
-		const separatorIndex = getArgs().indexOf("--");
-		expect(separatorIndex).toBeGreaterThan(-1);
-		expect(getArgs().slice(separatorIndex + 1)).toEqual(["latest"]);
 	});
 
 	test("cleans up both repository environments when restic fails", async () => {

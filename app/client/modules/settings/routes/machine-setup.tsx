@@ -20,7 +20,7 @@ type Enrollment = Pick<Agent, "id" | "credentialVersion" | "name"> & { issuedAt:
 
 const steps = ["Name your machine", "Connect", "Connected"];
 
-export function MachineSetupPage({ agentId }: { agentId?: string }) {
+export function MachineSetupPage({ agentId, organizationId }: { agentId?: string; organizationId: string }) {
 	const navigate = useNavigate();
 	const [targetId, setTargetId] = useState(agentId);
 	const [credential, setCredential] = useState<CreateRemoteAgentResponse | null>(null);
@@ -29,7 +29,7 @@ export function MachineSetupPage({ agentId }: { agentId?: string }) {
 	const [now, setNow] = useState(Date.now);
 
 	const agentsQuery = useQuery({
-		...listAgentsOptions(),
+		...listAgentsOptions({ query: { expectedOrganizationId: organizationId } }),
 		refetchInterval: targetId && !connected ? 2_000 : false,
 		refetchIntervalInBackground: false,
 	});

@@ -1,0 +1,15 @@
+{
+	admin off
+	auto_https disable_redirects
+}
+
+https://:8443 {
+	tls /e2e/tls.pem /e2e/tls.key
+	reverse_proxy 127.0.0.1:4096
+}
+
+http://127.0.0.1:4097 {
+	bind 127.0.0.1
+	root * /e2e/assets
+	file_server
+}

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { readFile } from "node:fs/promises";
 import { Hono } from "hono";
+import { ConflictError } from "http-errors-enhanced";
 import { bodyLimit } from "hono/body-limit";
 import {
 	AGENT_MAINTENANCE_ROUTE,
@@ -25,6 +26,7 @@ import {
 	createAgentBody,
 	createAgentDto,
 	listAgentsDto,
+	listAgentsQuery,
 	revokeAgentTokenDto,
 	rotateAgentTokenDto,
 	type CreateAgentDto,
@@ -83,11 +85,16 @@ export const agentsController = new Hono()
 	.use(requireAuth)
 	.use(requirePermission("agents.manage"))
 	.post("/:agentId/update", requestAgentUpdateDto, validator("json", requestAgentUpdateBody), async (c) => {
-		const { targetTag } = c.req.valid("json");
+		const { targetTag, credentialVersion } = c.req.valid("json");
 		c.req.raw.signal.throwIfAborted();
 
 		const update = await runEffectPromise(
-			agentUpdates.requestUpdate(c.get("authorizationGrant"), c.req.param("agentId"), targetTag),
+			agentUpdates.requestUpdate(
+				c.get("authorizationGrant"),
+				c.req.param("agentId"),
+				targetTag,
+				credentialVersion,
+			),
 			{ signal: c.req.raw.signal },
 		);
 
@@ -99,12 +106,18 @@ export const agentsController = new Hono()
 		await agentManager.deleteRemoteAgent(c.get("organizationId"), agentId);
 		return c.json({ success: true });
 	})
-	.get("/", listAgentsDto, async (c) => {
+	.get("/", validator("query", listAgentsQuery), listAgentsDto, async (c) => {
 		const organizationId = c.get("organizationId");
+		const { expectedOrganizationId } = c.req.valid("query");
+		if (expectedOrganizationId !== undefined && expectedOrganizationId !== organizationId) {
+			throw new ConflictError("The active organization changed");
+		}
+
 		const agents = await runEffectPromise(agentsService.listOrganizationAgents(organizationId), {
 			signal: c.req.raw.signal,
 		});
 
+		c.header("Cache-Control", "no-store");
 		return c.json<ListAgentsDto>(agents, 200);
 	})
 	.post("/", createAgentDto, validator("json", createAgentBody), async (c) => {

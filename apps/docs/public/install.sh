@@ -25,7 +25,12 @@ main() (
   trap 'rm -rf -- "$download_dir"' EXIT
   asset=zerobyte-agent-linux-$arch
   binary=$download_dir/$asset
-  base=https://zerobyte.app/agent/$version
+  if [[ "$version" == latest ]]; then
+    base=https://github.com/nicotsx/zerobyte/releases/latest/download
+  else
+    base=https://zerobyte.app/agent/$version
+  fi
+
   echo "Downloading $asset ($version)..."
   curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' \
     --connect-timeout 15 --max-time 300 --output "$binary" "$base/$asset"

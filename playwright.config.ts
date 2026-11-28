@@ -22,7 +22,7 @@ export default defineConfig({
 		},
 		{
 			name: "chromium",
-			testIgnore: /.*\.proxy\.spec\.ts/,
+			testIgnore: [/.*\.proxy\.spec\.ts/, /0012-agent-update\.spec\.ts/],
 			use: {
 				...devices["Desktop Chrome"],
 				launchOptions: {
@@ -42,6 +42,19 @@ export default defineConfig({
 				},
 			},
 		},
+
+		...(process.env.E2E_AGENT_UPDATE_ORIGIN
+			? [
+					{
+						name: "agent-update",
+						testMatch: /0012-agent-update\.spec\.ts/,
+						use: {
+							...devices["Desktop Chrome"],
+							baseURL: process.env.E2E_AGENT_UPDATE_ORIGIN,
+						},
+					},
+				]
+			: []),
 
 		// {
 		// 	name: "firefox",

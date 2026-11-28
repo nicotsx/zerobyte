@@ -159,6 +159,7 @@ test.each(["headers", "body"])("enrollment times out and aborts while waiting fo
 	expect(request.mock.calls[0]?.[1]?.signal?.aborted).toBe(true);
 });
 
+const configPath = "/var/lib/zerobyte-agent/agent.json";
 const saved = {
 	controllerUrl: "wss://old-controller.example/api/v1/agents/connect",
 	token: machineToken("machine", 1),
@@ -169,28 +170,31 @@ const saved = {
 test("reconnection replaces the credential and address while preserving folders", async () => {
 	vi.stubGlobal("fetch", async () => Response.json({ token: machineToken("machine", 3) }));
 
-	await expect(runTest(reconnectMachine(saved, controller, machineToken("machine", 2)))).resolves.toEqual({
-		...saved,
-		controllerUrl: "wss://controller.example/api/v1/agents/connect",
-		token: machineToken("machine", 3),
-	});
+	await expect(runTest(reconnectMachine(saved, controller, machineToken("machine", 2), configPath))).resolves.toEqual(
+		{
+			...saved,
+			controllerUrl: "wss://controller.example/api/v1/agents/connect",
+			token: machineToken("machine", 3),
+		},
+	);
 });
 
-test.each([machineToken("another-machine", 2), "not-a-code"])(
-	"a code for another machine is refused before it is exchanged: %s",
-	async (otherCode) => {
-		const request = vi.fn();
-		vi.stubGlobal("fetch", request);
+test.each([
+	{ code: machineToken("another-machine", 2), message: "code is for a different machine entry" },
+	{ code: "not-a-code", message: "connection code is incomplete or invalid" },
+])("rejects the code before contacting the controller: $message", async ({ code, message }) => {
+	const request = vi.fn();
+	vi.stubGlobal("fetch", request);
 
-		await expect(runTest(reconnectMachine(saved, controller, otherCode))).rejects.toThrow("different machine");
-		expect(request).not.toHaveBeenCalled();
-	},
-);
+	const savedController = new URL("https://old-controller.example");
+	await expect(runTest(reconnectMachine(saved, savedController, code, configPath))).rejects.toThrow(message);
+	expect(request).not.toHaveBeenCalled();
+});
 
 test("a credential issued for another machine is refused", async () => {
 	vi.stubGlobal("fetch", async () => Response.json({ token: machineToken("another-machine", 3) }));
 
-	await expect(runTest(reconnectMachine(saved, controller, machineToken("machine", 2)))).rejects.toThrow(
+	await expect(runTest(reconnectMachine(saved, controller, machineToken("machine", 2), configPath))).rejects.toThrow(
 		"Controller returned a credential for a different machine",
 	);
 });

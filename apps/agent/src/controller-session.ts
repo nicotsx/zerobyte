@@ -1,4 +1,4 @@
-import { Effect, Fiber, Queue, Ref } from "effect";
+import { Deferred, Effect, Exit, Queue, Ref, Scope } from "effect";
 import {
 	AGENT_PROTOCOL_VERSION,
 	createAgentMessage,
@@ -18,6 +18,7 @@ import { handleControllerCommand } from "./commands";
 import type { ControllerCommandContext, RunningJob } from "./context";
 import { getTrustedRootDescriptors, type TrustedRootRegistry } from "./trusted-roots";
 import { resticDeps } from "./restic/deps";
+import { UpdateCommitting, type UpdateJobs } from "./update-jobs";
 
 export const CONTROLLER_SILENCE_TIMEOUT_MS = 90_000;
 
@@ -34,12 +35,21 @@ export const createControllerSession = (
 		builtinLocal?: boolean;
 		excludedPaths?: string[];
 		resticVersion?: string;
+		updateJobs?: UpdateJobs;
+		updateTrial?: AgentCapabilities["updateTrial"];
 	},
 ): ControllerSession => {
+	const scope = Scope.makeUnsafe("parallel");
+	const startWorker = (run: Effect.Effect<void, unknown>) =>
+		Effect.runSync(Effect.forkIn(run, scope, { startImmediately: true }));
+
 	let isClosed = false;
 	let silence: { deadline: number; graceGranted: boolean } | undefined;
 
-	const outboundQueue = Effect.runSync(Queue.bounded<{ message: AgentMessage; wire: string }>(64));
+	const outboundQueue = Effect.runSync(
+		Queue.bounded<{ message: AgentMessage; wire: string; sent?: Deferred.Deferred<void> }>(64),
+	);
+	const closed = Effect.runSync(Deferred.make<void>());
 	const inboundQueue = Effect.runSync(Queue.bounded<ControllerWireMessage>(64));
 
 	const runningJobsRef = Effect.runSync(Ref.make<Map<string, RunningJob>>(new Map()));
@@ -50,6 +60,8 @@ export const createControllerSession = (
 		resticVersion: options.resticVersion,
 		restore: builtinLocal,
 		trustedRoots: getTrustedRootDescriptors(trustedRoots),
+		updateTrial: options.updateTrial,
+		selfUpdate: options.updateJobs && !builtinLocal ? "systemd" : undefined,
 	};
 
 	const diagnostics = createConnectionDiagnostics(Bun.randomUUIDv7(), () => ({
@@ -71,7 +83,7 @@ export const createControllerSession = (
 		}
 	};
 
-	const diagnosticFiber = Effect.runFork(
+	startWorker(
 		Effect.forever(
 			Effect.gen(function* () {
 				yield* Effect.sleep(CONNECTION_DIAGNOSTIC_INTERVAL_MS);
@@ -108,38 +120,45 @@ export const createControllerSession = (
 
 	const getRunningJob = (jobId: string) => Ref.get(runningJobsRef).pipe(Effect.map((map) => map.get(jobId)));
 
-	const setRunningJob = (jobId: string, job: RunningJob) => {
-		return Ref.update(runningJobsRef, (current) => {
-			const next = new Map(current);
-
-			next.set(jobId, job);
-			return next;
-		});
-	};
-
-	const abortRunningJobs = Effect.gen(function* () {
-		const runningJobs = yield* Ref.modify(runningJobsRef, (current) => [current, new Map()]);
-
-		yield* Effect.sync(() => {
-			for (const runningJob of runningJobs.values()) {
-				runningJob.abortController.abort();
+	const setRunningJob = (jobId: string, job: RunningJob) =>
+		Effect.gen(function* () {
+			if (isClosed) return yield* new UpdateCommitting();
+			if (job.kind === "backup") {
+				const rejection = options.updateJobs?.admit(job.scheduleId);
+				if (rejection) return yield* rejection;
 			}
-		});
-	});
 
-	const deleteRunningJob = (jobId: string) => {
-		return Ref.update(runningJobsRef, (current) => {
+			yield* Ref.update(runningJobsRef, (current) => new Map(current).set(jobId, job));
+		});
+
+	const abortRunningJobs = Ref.get(runningJobsRef).pipe(
+		Effect.map((jobs) => {
+			for (const job of jobs.values()) job.abortController.abort();
+		}),
+	);
+
+	const deleteRunningJob = (jobId: string) =>
+		Ref.update(runningJobsRef, (current) => {
 			const next = new Map(current);
+
+			const job = next.get(jobId);
+			if (job?.kind === "backup") options.updateJobs?.finish(job.scheduleId);
 
 			next.delete(jobId);
 			return next;
 		});
-	};
 
 	const offerOutbound = (message: AgentMessage) => {
-		return Effect.try(() => createAgentMessage(message.type, message.payload)).pipe(
-			Effect.flatMap((wire) => Queue.offer(outboundQueue, { message, wire })),
-		);
+		return Effect.gen(function* () {
+			const wire = yield* Effect.try(() => createAgentMessage(message.type, message.payload));
+			const terminalJobMessage = /^backup\.(completed|failed|cancelled)$/.test(message.type);
+			if (!options.updateJobs || !terminalJobMessage) return yield* Queue.offer(outboundQueue, { message, wire });
+
+			const sent = yield* Deferred.make<void>();
+			yield* Queue.offer(outboundQueue, { message, wire, sent });
+			yield* Effect.raceFirst(Deferred.await(sent), Deferred.await(closed));
+			return !isClosed;
+		});
 	};
 
 	const offerInbound = (message: ControllerWireMessage) => {
@@ -154,6 +173,12 @@ export const createControllerSession = (
 
 	const commandContext: ControllerCommandContext = {
 		allowRestore: builtinLocal,
+		startBackupJob: (jobId, job, run) => {
+			const backup = run.pipe(Effect.ensuring(deleteRunningJob(jobId)), Effect.interruptible);
+			const fork = options.updateJobs ? options.updateJobs.fork(backup) : Effect.forkChild(backup);
+
+			return setRunningJob(jobId, job).pipe(Effect.andThen(fork), Effect.asVoid, Effect.uninterruptible);
+		},
 		trustedRoots,
 		resticDeps: sessionResticDeps,
 		getRunningJob,
@@ -168,14 +193,15 @@ export const createControllerSession = (
 		}
 
 		isClosed = true;
+		Effect.runSync(Deferred.succeed(closed, undefined));
 		logger.info("Agent session closed", JSON.stringify(diagnostics.snapshot()));
 
-		void Effect.runPromise(Fiber.interrupt(diagnosticFiber)).catch(() => {});
-		void Effect.runPromise(abortRunningJobs).catch(() => {});
-		void Effect.runPromise(Fiber.interrupt(writerFiber)).catch(() => {});
-		void Effect.runPromise(Fiber.interrupt(processorFiber)).catch(() => {});
-		void Effect.runPromise(Queue.shutdown(outboundQueue)).catch(() => {});
-		void Effect.runPromise(Queue.shutdown(inboundQueue)).catch(() => {});
+		void Effect.runPromise(
+			abortRunningJobs.pipe(
+				Effect.andThen(Effect.all([Queue.shutdown(outboundQueue), Queue.shutdown(inboundQueue)])),
+				Effect.ensuring(Scope.close(scope, Exit.void)),
+			),
+		).catch((error) => logger.error(`Agent session cleanup failed: ${toMessage(error)}`));
 	};
 
 	const handleSendFailure = (reason: string) => {
@@ -185,10 +211,10 @@ export const createControllerSession = (
 		closeSession();
 	};
 
-	const writerFiber = Effect.runFork(
+	startWorker(
 		Effect.forever(
 			Effect.gen(function* () {
-				const { message, wire } = yield* Queue.take(outboundQueue);
+				const { message, wire, sent } = yield* Queue.take(outboundQueue);
 
 				yield* Effect.sync(() => {
 					try {
@@ -202,11 +228,12 @@ export const createControllerSession = (
 						diagnostics.onHeartbeatSent("pong", message.payload.sentAt);
 					}
 				});
+				if (sent) yield* Deferred.succeed(sent, undefined);
 			}),
 		),
 	);
 
-	const processorFiber = Effect.runFork(
+	startWorker(
 		Effect.forever(
 			Effect.gen(function* () {
 				const data = yield* Queue.take(inboundQueue);

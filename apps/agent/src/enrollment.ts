@@ -1,4 +1,4 @@
-import { toAgentConnectionUrl } from "@zerobyte/contracts/agent-connection";
+import { toAgentConnectionUrl, toControllerOrigin } from "@zerobyte/contracts/agent-connection";
 import { parseAgentToken } from "@zerobyte/contracts/agent-token";
 import { toMessage } from "@zerobyte/core/utils";
 import { Data, Effect } from "effect";
@@ -116,14 +116,35 @@ export const enrollMachine = (controller: URL, code: string, folders: ReadonlyAr
 		return { controllerUrl: toAgentConnectionUrl(controller).href, token, roots } satisfies AgentConfiguration;
 	});
 
-export const reconnectMachine = (saved: AgentConfiguration, controller: URL, code: string) =>
+export const reconnectMachine = (saved: AgentConfiguration, controller: URL, code: string, configPath: string) =>
 	Effect.gen(function* () {
-		const machineId = parseAgentToken(saved.token)?.agentId;
+		const enrollment = parseAgentToken(code);
+		if (!enrollment) {
+			return yield* new EnrollmentError({
+				message: `The connection code is incomplete or invalid. Copy a fresh code from Settings → Machines on ${controller.origin}.`,
+			});
+		}
 
-		if (!machineId || parseAgentToken(code)?.agentId !== machineId) {
+		const machineId = parseAgentToken(saved.token)?.agentId;
+		if (!machineId) {
+			return yield* new EnrollmentError({
+				message: `The saved agent credential in ${configPath} is invalid. Restore a working configuration, or stop the agent, move the file aside, and enroll again with a fresh code.`,
+			});
+		}
+
+		if (enrollment.agentId !== machineId) {
+			const savedAddress = URL.parse(saved.controllerUrl);
+			const savedController = savedAddress && toControllerOrigin(savedAddress);
+
+			if (savedController && savedController !== controller.origin) {
+				return yield* new EnrollmentError({
+					message: `This agent is already enrolled with ${savedController}. To switch to ${controller.origin}, stop the agent, move ${configPath} aside, and enroll with a fresh code. Select your allowed folders again after enrollment.`,
+				});
+			}
+
 			return yield* new EnrollmentError({
 				message:
-					"This connection code belongs to a different machine. In Settings → Machines, use the existing machine row’s Actions menu to reconnect it.",
+					"This agent is already enrolled and the code is for a different machine entry. In Settings → Machines, choose Actions → Get connection command on the existing entry.",
 			});
 		}
 

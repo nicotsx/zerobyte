@@ -57,7 +57,7 @@ export const loadStartupConfiguration = (configPath: string, allowInsecure = fal
 
 		let configuration: AgentConfiguration;
 		if (saved) {
-			configuration = yield* reconnectMachine(saved, controller, code);
+			configuration = yield* reconnectMachine(saved, controller, code, configPath);
 		} else {
 			configuration = yield* enrollMachine(controller, code, []);
 		}
