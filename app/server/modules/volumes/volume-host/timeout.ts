@@ -1,4 +1,4 @@
-class TimeoutError extends Error {
+export class TimeoutError extends Error {
 	code = "ETIMEOUT";
 	constructor(message: string) {
 		super(message);

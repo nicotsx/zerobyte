@@ -1,7 +1,9 @@
+import type { Dir } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
+import { fromPartial } from "@total-typescript/shoehorn";
 import * as nodeRuntime from "@zerobyte/core/node";
 import { volumeService } from "../volume.service";
 import { db } from "~/server/db/db";
@@ -12,13 +14,17 @@ import { VolumeHealthCheckJob } from "~/server/jobs/healthchecks";
 import { VolumeAutoRemountJob } from "~/server/jobs/auto-remount";
 import { findVolume } from "../volume-queries";
 import { getVolumePath } from "../helpers";
+import { OPERATION_TIMEOUT } from "../volume-host/constants";
 import { BadRequestError, ConflictError } from "http-errors-enhanced";
 
 vi.mock("node:fs/promises", async (original) => ({ ...(await original<typeof fs>()) }));
 vi.mock("node:os", async (original) => ({ ...(await original<typeof os>()) }));
 vi.mock("@zerobyte/core/node", async (original) => ({ ...(await original<typeof nodeRuntime>()) }));
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+	vi.useRealTimers();
+	vi.restoreAllMocks();
+});
 
 test.each([true, false])("create returns the persisted mount result (directory: %s)", async (isDirectory) => {
 	const { organizationId } = await createTestSession();
@@ -284,6 +290,49 @@ test("controller mounts, checks and unmounts managed backends without a connecte
 	expect(await db.query.volumesTable.findFirst({ where: { id: volume.id } })).toMatchObject({
 		status: "unmounted",
 		lastError: null,
+	});
+});
+
+test("automatic rclone recovery defers timed-out listings even after the error is persisted", async () => {
+	const { organizationId } = await createTestSession();
+	const volume = await createTestVolume({
+		organizationId,
+		status: "mounted",
+		autoRemount: true,
+		type: "rclone",
+		config: { backend: "rclone", remote: "remote", path: "/" },
+	});
+	const mountPath = getVolumePath(volume);
+	vi.spyOn(os, "platform").mockReturnValue("linux");
+	vi.spyOn(fs, "access").mockResolvedValue();
+	vi.spyOn(fs, "readFile").mockResolvedValue(`36 25 0:32 / ${mountPath} rw - fuse.rclone remote:/ rw`);
+	const listing = Promise.withResolvers<null>();
+	vi.spyOn(fs, "opendir").mockImplementation(async () =>
+		fromPartial<Dir>({ read: () => listing.promise, close: async () => {} }),
+	);
+	const execute = vi.spyOn(nodeRuntime, "safeExec");
+	vi.useFakeTimers();
+
+	await withContext({ organizationId }, async () => {
+		const firstCheck = volumeService.ensureHealthyVolume(volume);
+		await vi.advanceTimersByTimeAsync(OPERATION_TIMEOUT);
+		const reason = `Rclone health check timed out after ${OPERATION_TIMEOUT}ms`;
+		await expect(firstCheck).resolves.toEqual({ ready: false, reason });
+
+		const stored = await findVolume(volume.shortId);
+		if (!stored) throw new Error("Expected the managed volume to be persisted");
+		expect(stored).toMatchObject({ status: "error", lastError: reason });
+
+		await expect(volumeService.ensureHealthyVolume(stored)).resolves.toEqual({
+			ready: false,
+			reason: "Rclone health check already in progress",
+		});
+		expect(execute).not.toHaveBeenCalled();
+
+		listing.resolve(null);
+		await vi.advanceTimersByTimeAsync(0);
+		await expect(volumeService.ensureHealthyVolume(stored)).resolves.toEqual({ ready: true, remounted: false });
+		expect(await findVolume(volume.shortId)).toMatchObject({ status: "mounted", lastError: null });
 	});
 });
 

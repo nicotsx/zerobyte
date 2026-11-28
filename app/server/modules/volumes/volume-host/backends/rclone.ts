@@ -5,27 +5,46 @@ import { logger, safeExec } from "@zerobyte/core/node";
 import { buildRcloneRemotePath } from "@zerobyte/core/restic";
 import { toMessage } from "@zerobyte/core/utils";
 import { OPERATION_TIMEOUT, RCLONE_CONFIG_FILE, RCLONE_TIMEOUT } from "../constants";
-import { withTimeout } from "../timeout";
+import { TimeoutError, withTimeout } from "../timeout";
 import { getMountForPath } from "../fs";
-import type { VolumeBackend } from "../types";
+import type { VolumeBackend, VolumeBackendResult } from "../types";
 import { assertMounted, executeUnmount } from "./utils";
 
-const checkHealth = async (mountPath: string) => {
-	const run = async () => {
-		await assertMounted(mountPath, (fstype) => fstype.includes("rclone"));
+const pendingHealthChecks = new Set<string>();
 
-		logger.debug(`Rclone volume at ${mountPath} is healthy and mounted.`);
-		return { status: "mounted" as const };
-	};
+const probeMount = async (mountPath: string) => {
+	await assertMounted(mountPath, (fstype) => fstype.includes("rclone"));
+
+	const dir = await fs.opendir(mountPath);
+	try {
+		await dir.read();
+	} finally {
+		await dir.close().catch(() => {});
+	}
+};
+
+const checkHealth = async (mountPath: string): Promise<VolumeBackendResult> => {
+	if (pendingHealthChecks.has(mountPath)) {
+		return { status: "error", error: "Rclone health check already in progress", inconclusive: true };
+	}
+
+	pendingHealthChecks.add(mountPath);
+	const probe = probeMount(mountPath).finally(() => {
+		pendingHealthChecks.delete(mountPath);
+	});
 
 	try {
-		return await withTimeout(run(), OPERATION_TIMEOUT, "Rclone health check");
+		await withTimeout(probe, OPERATION_TIMEOUT, "Rclone health check");
+		logger.debug(`Rclone volume at ${mountPath} is healthy and mounted.`);
+		return { status: "mounted" };
 	} catch (error) {
 		const message = toMessage(error);
 		if (message !== "Volume is not mounted") {
 			logger.error("Rclone volume health check failed:", message);
 		}
-		return { status: "error" as const, error: message };
+		if (error instanceof TimeoutError) return { status: "error", error: message, inconclusive: true };
+
+		return { status: "error", error: message };
 	}
 };
 
@@ -70,13 +89,11 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 		return { status: "error" as const, error: "Rclone mounting is only supported on Linux hosts." };
 	}
 
-	const { status } = await checkHealth(mountPath);
-	if (status === "mounted") return { status: "mounted" as const };
+	const health = await checkHealth(mountPath);
+	if (health.status === "mounted" || health.inconclusive) return health;
 
-	if (status === "error") {
-		logger.debug(`Trying to unmount any existing mounts at ${mountPath} before mounting...`);
-		await unmount(mountPath);
-	}
+	logger.debug(`Trying to unmount any existing mounts at ${mountPath} before mounting...`);
+	await unmount(mountPath);
 
 	const run = async () => {
 		await fs.mkdir(mountPath, { recursive: true });
@@ -105,18 +122,19 @@ const mount = async (config: BackendConfig, mountPath: string) => {
 			const errorMsg = result.stderr.toString() || result.stdout.toString() || "Unknown error";
 			throw new Error(`Failed to mount rclone volume: ${errorMsg}`);
 		}
-
-		logger.info(`Rclone volume at ${mountPath} mounted successfully.`);
-		return { status: "mounted" as const };
 	};
 
 	try {
-		return await withTimeout(run(), RCLONE_TIMEOUT, "Rclone mount");
+		await withTimeout(run(), RCLONE_TIMEOUT, "Rclone mount");
 	} catch (error) {
 		const errorMsg = toMessage(error);
 		logger.error("Error mounting rclone volume", { error: errorMsg });
 		return { status: "error" as const, error: errorMsg };
 	}
+
+	const mountedHealth = await checkHealth(mountPath);
+	if (mountedHealth.status === "mounted") logger.info(`Rclone volume at ${mountPath} mounted successfully.`);
+	return mountedHealth;
 };
 
 export const makeRcloneBackend = (config: BackendConfig, mountPath: string): VolumeBackend => ({
