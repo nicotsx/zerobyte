@@ -49,10 +49,9 @@ export const copy = (
 			};
 			const args: string[] = ["--repo", destRepoUrl, "--verbose", "copy", "--from-repo", sourceRepoUrl];
 
-			const snapshotIds = options.snapshotIds ?? [];
+			const snapshotSelectors = options.snapshotIds?.length ? options.snapshotIds : ["latest"];
 
-			// Restic rejects snapshot filters combined with explicit snapshot IDs (restic >= 0.20)
-			if (options.tag && snapshotIds.length === 0) {
+			if (options.tag && snapshotSelectors.includes("latest")) {
 				args.push("--tag", options.tag);
 			}
 
@@ -74,11 +73,8 @@ export const copy = (
 			if (destUploadLimit) {
 				args.push("--limit-upload", destUploadLimit);
 			}
-			if (snapshotIds.length > 0) {
-				args.push("--", ...snapshotIds);
-			} else {
-				args.push("--", "latest");
-			}
+
+			args.push("--", ...snapshotSelectors);
 
 			logger.info(`Copying snapshots from ${sourceRepoUrl} to ${destRepoUrl}...`);
 			logger.debug(`Executing: restic ${args.join(" ")}`);
