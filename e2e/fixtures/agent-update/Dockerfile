@@ -1,6 +1,6 @@
 FROM oven/bun:1.4.5 AS bun
 FROM caddy:2-alpine AS caddy
-FROM restic/rest-server:0.14.0 AS rest-server
+FROM restic/rest-server:0.15.0 AS rest-server
 
 FROM debian:trixie-slim
 
