@@ -143,7 +143,7 @@ export const installSystemService = (options: InstallOptions, checkUpdateDirecto
 			yield* writeConfiguration(config, configuration);
 		} else if (saved && connectionCode) {
 			const address = controller ?? new URL(toControllerOrigin(saved.controllerUrl));
-			const configuration = yield* reconnectMachine(saved, address, connectionCode);
+			const configuration = yield* reconnectMachine(saved, address, connectionCode, config);
 
 			yield* writeConfiguration(config, configuration);
 		} else if (saved && controller) {

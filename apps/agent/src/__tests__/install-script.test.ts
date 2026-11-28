@@ -13,11 +13,14 @@ const harness = `
 uname() { case "$1" in -s) printf 'Linux\\n' ;; -m) printf 'x86_64\\n' ;; esac; }
 mktemp() { printf '%s\\n' "$TEST_DOWNLOAD_DIR"; }
 curl() {
-  local output
+  local output url="\${!#}"
   while (( $# )); do
     if [[ "$1" == --output ]]; then output=$2; shift; fi
     shift
   done
+  if [[ -n "\${TEST_DOWNLOAD_LOG:-}" ]]; then
+    printf '%s\\n' "$url" >> "$TEST_DOWNLOAD_LOG"
+  fi
   case "$output" in
     *.sha256) printf '%064d  zerobyte-agent-linux-x64\\n' 0 > "$output" ;;
     *)
@@ -99,20 +102,21 @@ console.log("INSTALL_COMPLETE");
 );
 
 test.each([
-	{ exitStatus: 0, allowInsecureHttp: "true" },
-	{ exitStatus: 0, allowInsecureHttp: "false" },
-	{ exitStatus: 0, allowInsecureHttp: undefined },
-	{ exitStatus: 23, allowInsecureHttp: "true" },
-	{ exitStatus: 23, allowInsecureHttp: "false" },
-	{ exitStatus: 23, allowInsecureHttp: undefined },
+	{ exitStatus: 0, allowInsecureHttp: "true", version: "latest" },
+	{ exitStatus: 0, allowInsecureHttp: "false", version: undefined },
+	{ exitStatus: 0, allowInsecureHttp: undefined, version: "v1.2.3" },
+	{ exitStatus: 23, allowInsecureHttp: "true", version: "v1.2.3" },
+	{ exitStatus: 23, allowInsecureHttp: "false", version: "latest" },
+	{ exitStatus: 23, allowInsecureHttp: undefined, version: undefined },
 ])(
-	"shell installer isolates environment with opt-in $allowInsecureHttp and preserves exit status $exitStatus",
-	async ({ exitStatus, allowInsecureHttp }) => {
+	"installer downloads version $version, isolates the environment with HTTP opt-in $allowInsecureHttp, and preserves exit status $exitStatus",
+	async ({ exitStatus, allowInsecureHttp, version }) => {
 		const directory = await mkdtemp(join(tmpdir(), "zerobyte-installer-"));
 		temporary.push(directory);
 		const download = join(directory, "download with spaces");
 		const log = join(directory, "install-args");
 		const environmentLog = join(directory, "install-env");
+		const downloadLog = join(directory, "download-urls");
 		await mkdir(download);
 
 		const result = spawnSync(
@@ -122,10 +126,11 @@ test.each([
 				encoding: "utf8",
 				env: {
 					PATH: "/usr/bin:/bin",
-					ZEROBYTE_AGENT_VERSION: "v1.2.3",
+					ZEROBYTE_AGENT_VERSION: version,
 					ZEROBYTE_AGENT_ALLOW_INSECURE_HTTP: allowInsecureHttp,
 					UNRELATED_INSTALLER_VARIABLE: "must not reach the binary",
 					TEST_DOWNLOAD_DIR: download,
+					TEST_DOWNLOAD_LOG: downloadLog,
 					TEST_INSTALL_LOG: log,
 					TEST_ENV_LOG: environmentLog,
 					TEST_INSTALL_EXIT: String(exitStatus),
@@ -137,6 +142,17 @@ test.each([
 		expect(result.error).toBeUndefined();
 		expect(result.stderr).toBe("");
 		expect(result.status).toBe(exitStatus);
+
+		const base =
+			version === "v1.2.3"
+				? "https://zerobyte.app/agent/v1.2.3"
+				: "https://github.com/nicotsx/zerobyte/releases/latest/download";
+
+		expect((await readFile(downloadLog, "utf8")).trim().split("\n")).toEqual([
+			`${base}/zerobyte-agent-linux-x64`,
+			`${base}/zerobyte-agent-linux-x64.sha256`,
+		]);
+
 		expect(await readFile(log, "utf8")).toBe(
 			[
 				"-i",

@@ -177,6 +177,23 @@ test("a connection code reconnects the saved machine and preserves its folders",
 	await expectNoStagingLeftovers(fixture);
 });
 
+test("a code from a new controller explains how to switch without overwriting the saved agent", async () => {
+	const fixture = await setup();
+	await withExistingInstallation(fixture);
+
+	const result = fixture.install({
+		controller: new URL("https://new-controller.example"),
+		requestCode: async () => machineToken("another-machine", 2),
+	});
+
+	await expect(result).rejects.toThrow(
+		`To switch to https://new-controller.example, stop the agent, move ${fixture.files.config} aside`,
+	);
+	expect(fixture.exchange).not.toHaveBeenCalled();
+	await expectUntouched(fixture);
+	await expectNoStagingLeftovers(fixture);
+});
+
 test("a controller address without a code relocates the agent and keeps its credential", async () => {
 	const fixture = await setup();
 	await withExistingInstallation(fixture);
